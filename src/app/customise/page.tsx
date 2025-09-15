@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
 
-type WeightOption = 1 | 2 | 3 | 4 | 5;
-type IcingOption = "frost" | "fondant";
+type WeightOption = 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 4 | 5;
+type IcingOption = "frost" | "fondant" | "semi-fondant";
 type FlavourOption =
   | "vanilla"
   | "chocolate"
@@ -28,10 +28,19 @@ export default function Customise() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const previewRef = useRef<HTMLDivElement>(null);
+  const [withEgg, setWithEgg] = useState(true);
+  const [photoCount, setPhotoCount] = useState(0);
   const [options, setOptions] = useState<
     Array<{ option_type: string; option_name: string; base_price: number }>
   >([]);
+  const [extraPricing, setExtraPricing] = useState<
+    Array<{
+      addon_name: string;
+      weight_range: string;
+      addon_price: number;
+    }>
+  >([]);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     (async () => {
@@ -40,6 +49,11 @@ export default function Customise() {
         .from("cake_options")
         .select("option_type,option_name,base_price");
       if (!error && data) setOptions(data as any);
+
+      const { data: extraData, error: extraError } = await supabase
+        .from("extra_pricing")
+        .select("addon_name,weight_range,addon_price");
+      if (!extraError && extraData) setExtraPricing(extraData as any);
     })();
   }, []);
 
@@ -50,23 +64,55 @@ export default function Customise() {
       );
       return found ? Number(found.base_price) : 0;
     };
-    let total = 0;
-    total += getPrice("weight", weightKg);
-    total += getPrice("icing", icing);
-    total += getPrice("flavour", flavour);
-    total += getPrice("cake_type", cakeType);
-    total += getPrice("shape", shape);
+
+    const eggSuffix = withEgg ? "with_egg" : "eggless";
+    const flavourWithWeight = `${flavour}_${weightKg}kg_${eggSuffix}`;
+    let total = getPrice("flavour_weight", flavourWithWeight);
+
+    const getExtraPrice = (
+      addonName: string,
+      currentWeight: number,
+      count = 1
+    ) => {
+      const addon = extraPricing.find((e) => e.addon_name === addonName);
+      if (!addon) return 0;
+      if (addon.weight_range === "per photo") {
+        return addon.addon_price * count;
+      }
+      const [min, max] = addon.weight_range.split("-").map(parseFloat);
+      if (currentWeight >= min && currentWeight <= max) {
+        return addon.addon_price;
+      }
+      return 0;
+    };
+
+    if (icing === "fondant" || icing === "semi-fondant") {
+      total += getExtraPrice(icing, weightKg);
+    }
+    total += getExtraPrice("Photo Cake", weightKg, photoCount);
+
     return total;
-  }, [options, weightKg, icing, flavour, cakeType, shape]);
+  }, [
+    options,
+    extraPricing,
+    weightKg,
+    icing,
+    flavour,
+    cakeType,
+    shape,
+    withEgg,
+    photoCount,
+  ]);
 
   const isStepCake = cakeType === "step";
   const minWeightForStep = 3;
-  const weightOptions: WeightOption[] = [1, 2, 3, 4, 5];
+  const weightOptions: WeightOption[] = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5];
 
   const icingColor = useMemo(() => {
     const map: Record<IcingOption, string> = {
       frost: "#fff1f3",
       fondant: "#f5c6cf",
+      "semi-fondant": "#f8d9e0",
     };
     return map[icing];
   }, [icing]);
@@ -149,7 +195,9 @@ export default function Customise() {
             <div>
               <label className="block text-sm font-medium">Icing Type</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(["frost", "fondant"] as IcingOption[]).map((opt) => (
+                {(
+                  ["frost", "fondant", "semi-fondant"] as IcingOption[]
+                ).map((opt) => (
                   <button
                     key={opt}
                     onClick={() => setIcing(opt)}
@@ -160,7 +208,11 @@ export default function Customise() {
                     }`}
                     aria-pressed={icing === opt}
                   >
-                    {opt === "frost" ? "Frost Icing" : "Fondant"}
+                    {opt === "frost"
+                      ? "Frost Icing"
+                      : opt === "fondant"
+                      ? "Fondant"
+                      : "Semi Fondant"}
                   </button>
                 ))}
               </div>
@@ -182,9 +234,53 @@ export default function Customise() {
               </select>
             </div>
 
-            {/* Cake Type */}
+            {/* Egg/Eggless */}
             <div>
               <label className="block text-sm font-medium">Cake Type</label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  onClick={() => setWithEgg(true)}
+                  className={`px-3 py-2 rounded-md text-sm border ${
+                    withEgg
+                      ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                      : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                  }`}
+                  aria-pressed={withEgg}
+                >
+                  With Egg
+                </button>
+                <button
+                  onClick={() => setWithEgg(false)}
+                  className={`px-3 py-2 rounded-md text-sm border ${
+                    !withEgg
+                      ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                      : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                  }`}
+                  aria-pressed={!withEgg}
+                >
+                  Eggless
+                </button>
+              </div>
+            </div>
+
+            {/* Photo Cake */}
+            <div>
+              <label className="block text-sm font-medium">Photo Cake</label>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  value={photoCount}
+                  onChange={(e) => setPhotoCount(parseInt(e.target.value))}
+                  className="w-20 rounded-md border border-[var(--muted)] bg-white px-3 py-2 text-sm"
+                />
+                <span>photos</span>
+              </div>
+            </div>
+
+            {/* Cake Type */}
+            <div>
+              <label className="block text-sm font-medium">Cake Style</label>
               <div className="mt-2 flex flex-wrap gap-2">
                 {(["pastry", "normal", "step"] as CakeTypeOption[]).map(
                   (opt) => (
@@ -336,6 +432,9 @@ export default function Customise() {
                       cakeType,
                       shape,
                       message,
+                      withEgg,
+                      photoCount,
+                      price: sellingPrice,
                       referenceImage: referenceImageUrl,
                     }),
                   });

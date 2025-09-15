@@ -11,6 +11,9 @@ export async function POST(req: Request) {
     cakeType,
     shape,
     message,
+    withEgg,
+    photoCount,
+    price,
     referenceImage,
   } = await req.json();
 
@@ -26,6 +29,9 @@ export async function POST(req: Request) {
         cake_type: cakeType,
         shape,
         message,
+        with_egg: withEgg,
+        photo_count: photoCount,
+        price,
         reference_image_url: referenceImage,
       })
       .select();
