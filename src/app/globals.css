@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("../../public/fonts/Montserrat-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("../../public/fonts/Montserrat-Medium.ttf") format("truetype");
+  font-weight: medium;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("../../public/fonts/Montserrat-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "OliveVillage";
+  src: url("../../public/fonts/OliveVillage-Regular.ttf") format("truetype");
+  font-style: normal;
+}
+
+:root {
+  --background: #fff7f9;
+  --foreground: #d82125;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #fff7f9;
+    --foreground: #d82125;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Montserrat", sans-serif;
+}
+
+h1 {
+  font-family: "OliveVillage", cursive;
+}
+
+.button-one {
+  box-shadow: var(--foreground) -4px 4px 0px;
+}
+
+.button-two {
+  box-shadow: var(--background) -4px 4px 0px;
+}
+
+.button-one {
+  box-shadow: var(--foreground) -4px 4px 0px;
+  transition: box-shadow 400ms;
+}
+
+.button-one:hover {
+  box-shadow: var(--foreground) -2px 2px 0px;
+}
+
+.button-two {
+  box-shadow: var(--background) -4px 4px 0px;
+  transition: box-shadow 400ms;
+}
+
+.button-two:hover {
+  box-shadow: var(--background) -2px 2px 0px;
+}
