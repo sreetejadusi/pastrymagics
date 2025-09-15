@@ -1,26 +1,22 @@
-import Header from "@/components/header";
-
 export default function Home() {
   return (
-    <main className="">
-      <svg width="0" height="0">
-        <defs>
-          <clipPath id="curvedClip" clipPathUnits="objectBoundingBox">
-            {/* Modified path: straight top, curved bottom */}
-            <path d="M0,0 H1 V0.85 C0.7,0.95 0.3,0.95 0,0.85 Z" />
-          </clipPath>
-        </defs>
-      </svg>
-
-      <div className="h-screen flex relative flex-col items-center justify-center overflow-hidden">
-        {/* Background with curved top & bottom */}
+    <main className="font-sans text-foreground">
+      {/* Hero */}
+      <section className="relative h-[90vh] min-h-[560px] flex items-center justify-center overflow-hidden">
+        <svg width="0" height="0" aria-hidden>
+          <defs>
+            <clipPath id="curvedClip" clipPathUnits="objectBoundingBox">
+              <path d="M0,0 H1 V0.85 C0.7,0.95 0.3,0.95 0,0.85 Z" />
+            </clipPath>
+          </defs>
+        </svg>
         <div className="absolute inset-0 -z-10">
           <div className="relative w-full h-full overflow-hidden">
             <div
               className="absolute inset-0"
               style={{
-                clipPath: "url(#curvedClip)", // Reference the SVG clipPath here
-                backgroundColor: "#f9d5df", // fallback color
+                clipPath: "url(#curvedClip)",
+                backgroundColor: "var(--accent)",
               }}
             >
               <video
@@ -32,30 +28,194 @@ export default function Home() {
                 playsInline
               />
             </div>
-            {/* Optional dark overlay - also apply the curved clip path */}
             <div
-              className="absolute inset-0 bg-black opacity-40"
-              style={{
-                clipPath: "url(#curvedClip)", // Reference the SVG clipPath here as well
-              }}
-            ></div>
+              className="absolute inset-0 bg-black/40"
+              style={{ clipPath: "url(#curvedClip)" }}
+            />
           </div>
         </div>
-
-        {/* Content */}
-        <h1 className="text-background text-6xl md:text-8xl text-center z-10">
-          Baked with Love, <br />
-          Sprinkled with Magic.
-        </h1>
-        <div className="flex gap-4 mt-8 z-10 text-foreground">
-          <button className="px-4 py-2 bg-background rounded-md text-sm button-one">
-            Order at the Table
-          </button>
-          <button className="px-4 py-2 bg-background rounded-md text-sm button-one">
-            Customise a Cake
-          </button>
+        <div className="relative z-10 text-center px-6">
+          <h1 className="text-background text-5xl md:text-7xl leading-tight">
+            Baked with Love, Sprinkled with Magic
+          </h1>
+          <p className="mt-4 text-white/90 max-w-2xl mx-auto text-base md:text-lg">
+            Custom cakes crafted to your taste. Instant dine-in orders straight
+            from your table.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href="/order"
+              className="px-6 py-3 rounded-full bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-600)] transition-colors"
+              aria-label="Order at the table"
+            >
+              Order at the Table
+            </a>
+            <a
+              href="/customise"
+              className="px-6 py-3 rounded-full bg-white text-[var(--foreground)] text-sm font-medium border border-white/60 hover:bg-white/90 transition-colors"
+              aria-label="Customize a cake"
+            >
+              Customise a Cake
+            </a>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Order Modes */}
+      <section id="order" className="py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl text-center font-semibold">
+            Order Your Way
+          </h2>
+          <p className="text-center mt-2 text-foreground/70 max-w-2xl mx-auto">
+            Whether you’re seated in our bakery or planning a celebration, we’ve
+            made it effortless.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+            <a
+              href="/order"
+              className="group rounded-2xl p-6 bg-white/70 backdrop-blur border border-[var(--muted)] hover:border-[var(--primary)] transition-colors shadow-sm hover:shadow-md"
+              aria-label="Place instant dine-in order"
+            >
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-full grid place-items-center bg-[var(--primary-50)] text-[var(--primary)] text-xl">
+                  🍰
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">
+                    Instant Dine‑In Order
+                  </h3>
+                  <p className="mt-1 text-foreground/70">
+                    Scan, select, and send your order to our kitchen without
+                    waiting.
+                  </p>
+                  <span className="inline-block mt-3 text-sm text-[var(--primary)] group-hover:underline">
+                    Start ordering →
+                  </span>
+                </div>
+              </div>
+            </a>
+            <a
+              id="customise"
+              href="/customise"
+              className="group rounded-2xl p-6 bg-white/70 backdrop-blur border border-[var(--muted)] hover:border-[var(--primary)] transition-colors shadow-sm hover:shadow-md"
+              aria-label="Customize a cake"
+            >
+              <div className="flex items-start gap-4">
+                <div className="h-12 w-12 rounded-full grid place-items-center bg-[var(--primary-50)] text-[var(--primary)] text-xl">
+                  🎂
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">Custom Cake Builder</h3>
+                  <p className="mt-1 text-foreground/70">
+                    Choose flavours, layers, frostings, toppers—see live pricing
+                    as you go.
+                  </p>
+                  <span className="inline-block mt-3 text-sm text-[var(--primary)] group-hover:underline">
+                    Design your cake →
+                  </span>
+                </div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-16 px-6 bg-[var(--muted)]/60">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl text-center font-semibold">
+            How It Works
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
+            <div className="rounded-2xl bg-white p-6 border border-[var(--muted)]">
+              <div className="text-2xl">①</div>
+              <h3 className="mt-2 font-semibold">Pick your experience</h3>
+              <p className="mt-1 text-foreground/70">
+                Dine‑in instant order or custom cake builder.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-6 border border-[var(--muted)]">
+              <div className="text-2xl">②</div>
+              <h3 className="mt-2 font-semibold">Personalise and confirm</h3>
+              <p className="mt-1 text-foreground/70">
+                Select flavours, sizes, and notes—see transparent pricing.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-6 border border-[var(--muted)]">
+              <div className="text-2xl">③</div>
+              <h3 className="mt-2 font-semibold">We bake the magic</h3>
+              <p className="mt-1 text-foreground/70">
+                Our chefs craft your order fresh and notify when ready.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Highlights */}
+      <section className="py-16 px-6">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl text-center font-semibold">
+            Why Pastry Magics?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
+            <div className="rounded-2xl p-6 bg-white border border-[var(--muted)]">
+              <h3 className="font-semibold">Premium Ingredients</h3>
+              <p className="mt-1 text-foreground/70">
+                Belgian chocolate, real cream, seasonal fruits.
+              </p>
+            </div>
+            <div className="rounded-2xl p-6 bg-white border border-[var(--muted)]">
+              <h3 className="font-semibold">Made Fresh Daily</h3>
+              <p className="mt-1 text-foreground/70">
+                Baked in‑house every morning by our artisans.
+              </p>
+            </div>
+            <div className="rounded-2xl p-6 bg-white border border-[var(--muted)]">
+              <h3 className="font-semibold">Transparent Pricing</h3>
+              <p className="mt-1 text-foreground/70">
+                Live price updates as you customise your cake.
+              </p>
+            </div>
+            <div className="rounded-2xl p-6 bg-white border border-[var(--muted)]">
+              <h3 className="font-semibold">Pickup or Delivery</h3>
+              <p className="mt-1 text-foreground/70">
+                Choose what suits you—we’ll handle the rest.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-16 px-6 text-center bg-[var(--primary)] text-white">
+        <div className="max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-semibold">
+            Ready to Taste the Magic?
+          </h2>
+          <p className="mt-2 text-white/90">
+            Start a custom cake or send your table order now.
+          </p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href="/customise"
+              className="px-6 py-3 rounded-full bg-white text-[var(--foreground)] text-sm font-medium hover:bg-white/90"
+            >
+              Start Customising
+            </a>
+            <a
+              href="/order"
+              className="px-6 py-3 rounded-full border border-white text-white text-sm font-medium hover:bg-white hover:text-[var(--foreground)]"
+            >
+              Dine‑In Order
+            </a>
+          </div>
+          <p className="mt-6 text-sm text-white/80">
+            © {new Date().getFullYear()} Pastry Magics
+          </p>
+        </div>
+      </section>
     </main>
   );
 }

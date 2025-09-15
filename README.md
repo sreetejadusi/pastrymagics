@@ -1,3 +1,68 @@
+## Supabase setup
+
+Create a new Supabase project and set env vars in `.env.local`:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+```
+
+Run this SQL in Supabase SQL editor to create tables and policies:
+
+```sql
+-- Orders table
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  order_number text not null,
+  name text not null,
+  phone text not null,
+  table_number text,
+  status text not null default 'placed',
+  total numeric not null default 0,
+  payment text not null default 'pay-at-counter',
+  created_at timestamp with time zone default now()
+);
+
+-- Order items
+create table if not exists public.order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references public.orders(id) on delete cascade,
+  item_id text not null,
+  name text not null,
+  price numeric not null,
+  qty int not null
+);
+
+-- Cakes
+create table if not exists public.cakes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  phone text not null,
+  weight_kg int not null,
+  icing text not null,
+  flavour text not null,
+  cake_type text not null,
+  shape text not null,
+  message text,
+  reference_image text,
+  created_at timestamp with time zone default now()
+);
+
+-- Basic RLS (open for anon, restrict writes per project needs)
+alter table public.orders enable row level security;
+alter table public.order_items enable row level security;
+alter table public.cakes enable row level security;
+
+create policy "read_all_orders" on public.orders for select using (true);
+create policy "insert_orders" on public.orders for insert with check (true);
+
+create policy "read_all_items" on public.order_items for select using (true);
+create policy "insert_items" on public.order_items for insert with check (true);
+
+create policy "read_all_cakes" on public.cakes for select using (true);
+create policy "insert_cakes" on public.cakes for insert with check (true);
+```
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
