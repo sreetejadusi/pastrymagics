@@ -252,8 +252,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
       <footer className="bg-[var(--primary)] text-white py-6 px-6 text-center text-sm text-foreground/70">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
           <a href="/terms-of-service" className="hover:underline">
