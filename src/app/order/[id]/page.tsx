@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import OrderActions from "./OrderActions"; // Import the new client component
+import OrderActions from "./OrderActions";
 
 type OrderItem = {
   id: string;
@@ -10,25 +10,24 @@ type OrderItem = {
 
 type Order = {
   id: string;
-  orderNumber: string;
+  order_number: string;
   name: string;
   phone: string;
-  tableNumber?: string;
+  table_number?: string;
   items: OrderItem[];
   status: "placed" | "preparing" | "ready" | "completed" | "cancelled";
   total: number;
-  createdAt: string;
+  created_at: string;
   payment: "pay-at-counter";
 };
-
-type OrdersState = { orders: Order[] };
 
 export default async function OrderStatusPage({
   params,
 }: {
   params: { id: string };
 }) {
-  const { id } = params;
+  const { id } = await params;
+
   if (!supabase) {
     return (
       <main className="px-4 py-6 max-w-3xl mx-auto">
@@ -37,13 +36,16 @@ export default async function OrderStatusPage({
       </main>
     );
   }
+
+  // CORRECTED: Use filter and eq for a correct query.
   const { data, error } = await supabase
     .from("orders")
     .select(
       "id,order_number,name,phone,table_number,items,status,total,created_at,payment"
     )
-    .or(`id.eq.${id},order_number.eq.${id}`)
+    .filter("id", "eq", id)
     .single();
+
   if (error || !data) {
     return (
       <main className="px-4 py-6 max-w-3xl mx-auto">
@@ -52,6 +54,7 @@ export default async function OrderStatusPage({
       </main>
     );
   }
+
   const order = {
     id: data.id,
     orderNumber: data.order_number as string,
@@ -63,10 +66,10 @@ export default async function OrderStatusPage({
     total: Number(data.total) || 0,
     createdAt: data.created_at as string,
     payment: data.payment as any,
-  } as Order;
+  };
 
   const createdMs = new Date(order.createdAt).getTime();
-  const cancellable = Date.now() - createdMs < 60_000;
+  const cancellable = Date.now() - createdMs < 30_000;
 
   return (
     <main className="px-4 py-6 max-w-3xl mx-auto">
@@ -74,7 +77,9 @@ export default async function OrderStatusPage({
         <div className="p-5 border-b border-[var(--muted)]">
           <div className="flex items-center justify-between">
             <h1 className="text-xl font-semibold">Order Ticket</h1>
-            <span className="text-sm">#{order.orderNumber}</span>
+            <span className="text-sm">
+              ORDER: <strong>#{order.orderNumber}</strong>
+            </span>
           </div>
           <p className="text-xs text-foreground/60 mt-1">
             Placed on {new Date(order.createdAt).toLocaleString()}
@@ -118,7 +123,6 @@ export default async function OrderStatusPage({
             </div>
           </div>
 
-          {/* Use the new client component here */}
           <OrderActions order={order} cancellable={cancellable} />
         </div>
 

@@ -4,29 +4,32 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-type Item = { id: string; name: string; price: number; image: string };
+type Item = {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  stock_quantity: number;
+};
 type CartItem = Item & { qty: number };
-
-const fallbackMenu: Item[] = [];
 
 export default function OrderPage() {
   const router = useRouter();
-  const [menu, setMenu] = useState<Item[]>(fallbackMenu);
+  const [menuItems, setMenuItems] = useState<Item[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [table, setTable] = useState("");
   const [placing, setPlacing] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
 
-  // Auto-set table from URL param ?table=xx
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const t = p.get("table");
     if (t) setTable(t);
   }, []);
 
-  // Fetch menu from API
   useEffect(() => {
     (async () => {
       try {
@@ -38,8 +41,9 @@ export default function OrderPage() {
             name: m.name,
             price: Number(m.price) || 0,
             image: m.image_url || "/logo.png",
+            stock_quantity: m.stock_quantity,
           }));
-          setMenu(mapped);
+          setMenuItems(mapped);
         }
       } catch {}
     })();
@@ -61,6 +65,7 @@ export default function OrderPage() {
       return [...prev, { ...it, qty: 1 }];
     });
   };
+
   const updateQty = (id: string, qty: number) => {
     setCart((prev) =>
       prev
@@ -70,6 +75,10 @@ export default function OrderPage() {
   };
 
   async function placeOrder() {
+    if (!consentChecked) {
+      alert("Please agree to store your details for order tracking.");
+      return;
+    }
     if (!name.trim() || !phone.trim()) {
       alert("Please enter your name and phone number");
       return;
@@ -82,6 +91,18 @@ export default function OrderPage() {
       alert("Please enter your table number");
       return;
     }
+
+    const phonePattern = /^\d{10}$/;
+    if (!phonePattern.test(phone.trim())) {
+      alert("Please enter a valid 10-digit phone number.");
+      return;
+    }
+
+    if (isNaN(parseInt(table.trim()))) {
+      alert("Please enter a valid table number.");
+      return;
+    }
+
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {
@@ -124,7 +145,7 @@ export default function OrderPage() {
         <section className="lg:col-span-2 rounded-2xl border border-[var(--muted)] bg-white p-4 md:p-6">
           <h2 className="text-lg font-semibold">Menu</h2>
           <div className="mt-4 grid grid-cols-1 gap-3">
-            {menu.map((it) => {
+            {menuItems.map((it) => {
               const current = cart.find((c) => c.id === it.id)?.qty ?? 0;
               return (
                 <div
@@ -217,14 +238,33 @@ export default function OrderPage() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone number"
+              type="tel" // Use type="tel" for better mobile keyboard experience
+              pattern="[0-9]{10}"
+              title="Phone number must be exactly 10 digits."
               className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm"
             />
             <input
               value={table}
               onChange={(e) => setTable(e.target.value)}
               placeholder="Table number"
+              type="number" // Use type="number"
               className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm"
             />
+            <div className="mt-4 flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="consent-checkbox"
+                checked={consentChecked}
+                onChange={(e) => setConsentChecked(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <label
+                htmlFor="consent-checkbox"
+                className="text-sm text-foreground/70"
+              >
+                I agree to store my name and phone number for order tracking.
+              </label>
+            </div>
           </div>
           <button
             onClick={placeOrder}

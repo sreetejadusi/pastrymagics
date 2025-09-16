@@ -5,7 +5,7 @@ export default async function CustomiseById({
 }: {
   params: { id: string };
 }) {
-  const { id } = params;
+  const { id } = await params;
   if (!supabase) {
     return (
       <main className="px-4 py-6 max-w-5xl mx-auto">
@@ -14,13 +14,16 @@ export default async function CustomiseById({
       </main>
     );
   }
+
+  // Fetch from the new schema
   const { data, error } = await supabase
     .from("cakes")
     .select(
-      "id,name,phone,weight_kg,icing,flavour,cake_type,shape,message,reference_image_url,created_at"
+      "id,name,phone,customization,reference_image_url,created_at,total_price"
     )
     .eq("id", id)
     .single();
+
   if (error || !data) {
     return (
       <main className="px-4 py-6 max-w-5xl mx-auto">
@@ -29,6 +32,18 @@ export default async function CustomiseById({
       </main>
     );
   }
+
+  // Destructure customization details
+  const {
+    weightKg,
+    icing,
+    flavour,
+    cakeType,
+    shape,
+    message,
+    withEgg,
+    photoCount,
+  } = data.customization;
 
   return (
     <main className="px-4 py-6 max-w-5xl mx-auto">
@@ -40,12 +55,15 @@ export default async function CustomiseById({
       <section className="mt-6 rounded-2xl border border-[var(--muted)] bg-white p-4 md:p-6">
         <h2 className="text-lg font-semibold">Details</h2>
         <div className="mt-2 text-sm grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div>Weight: {data.weight_kg}kg</div>
-          <div>Icing: {data.icing}</div>
-          <div>Flavour: {data.flavour}</div>
-          <div>Type: {data.cake_type}</div>
-          <div>Shape: {data.shape}</div>
-          {data.message && <div>Text: {data.message}</div>}
+          <div>Weight: {weightKg}kg</div>
+          <div>Icing: {icing}</div>
+          <div>Flavour: {flavour}</div>
+          <div>Type: {cakeType}</div>
+          <div>Shape: {shape}</div>
+          {message && <div>Text: {message}</div>}
+          <div>Egg Status: {withEgg ? "With Egg" : "Eggless"}</div>
+          {photoCount > 0 && <div>Photo Count: {photoCount}</div>}
+          <div>Total Price: ₹{data.total_price}</div>
         </div>
         {data.reference_image_url && (
           <div className="mt-4">

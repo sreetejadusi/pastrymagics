@@ -1,19 +1,28 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-// Assuming you still want this function
-function generateOrderNumber(): string {
-  const d = new Date();
-  const y = d.getFullYear().toString().slice(-2);
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `PM-${y}${m}${day}-${rand}`;
-}
-
 export async function POST(req: Request) {
   const { name, phone, tableNumber, items } = await req.json();
-  const orderNumber = generateOrderNumber();
+
+  let orderNumber: number;
+  try {
+    const { data, error } = await supabase.rpc("get_next_order_number");
+    if (error || data === null) {
+      console.error("Error getting next order number:", error);
+      return NextResponse.json(
+        { error: "Could not generate order number." },
+        { status: 500 }
+      );
+    }
+    orderNumber = data;
+  } catch (e) {
+    console.error("Error in RPC call:", e);
+    return NextResponse.json(
+      { error: "Could not generate order number." },
+      { status: 500 }
+    );
+  }
+
   const total = items.reduce(
     (sum: number, item: any) => sum + item.price * item.qty,
     0
@@ -27,18 +36,21 @@ export async function POST(req: Request) {
         name,
         phone,
         table_number: tableNumber,
-        items, // Supabase automatically handles JSONB conversion
+        items,
         status: "placed",
         total,
         payment: "pay-at-counter",
       })
-      .select();
+      .select("id, order_number"); // Select the order number to return it to the client
 
     if (error) {
       throw error;
     }
 
-    return NextResponse.json({ id: data[0].id });
+    return NextResponse.json({
+      id: data[0].id,
+      orderNumber: data[0].order_number,
+    });
   } catch (e) {
     console.error("Error placing order:", e);
     return NextResponse.json(

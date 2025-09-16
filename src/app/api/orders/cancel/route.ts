@@ -12,28 +12,49 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
 
-  // Lookup by id or order_number
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id,order_number,created_at,status")
-    .or(`id.eq.${idOrNumber},order_number.eq.${idOrNumber}`)
-    .single();
-  if (error || !data)
+  let query = supabase.from("orders").select("id,created_at,status").single();
+
+  // Check if the input is a valid UUID or an integer
+  const isUUID =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      idOrNumber
+    );
+  const isInteger = /^\d+$/.test(idOrNumber);
+
+  if (isUUID) {
+    query = query.eq("id", idOrNumber);
+  } else if (isInteger) {
+    // Cast the string to an integer for the query
+    query = query.eq("order_number", parseInt(idOrNumber));
+  } else {
+    return NextResponse.json(
+      { error: "Invalid order ID format." },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await query;
+
+  if (error || !data) {
+    console.error("Order not found or database error:", error);
     return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const ageMs = Date.now() - new Date(data.created_at as string).getTime();
-  if (ageMs > 60_000)
+  if (ageMs > 30_000) {
     return NextResponse.json(
       { error: "Cancellation window expired" },
       { status: 400 }
     );
+  }
 
   const { error: updErr } = await supabase
     .from("orders")
     .update({ status: "cancelled" })
     .eq("id", data.id);
-  if (updErr)
+  if (updErr) {
     return NextResponse.json({ error: updErr.message }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }

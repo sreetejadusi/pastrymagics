@@ -3,24 +3,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
+import { jsPDF } from "jspdf";
 
-type WeightOption = 0.5 | 1 | 1.5 | 2 | 2.5 | 3 | 4 | 5;
-type IcingOption = "frost" | "fondant" | "semi-fondant";
-type FlavourOption =
-  | "vanilla"
-  | "chocolate"
-  | "red-velvet"
-  | "strawberry"
-  | "butterscotch";
-type CakeTypeOption = "pastry" | "normal" | "step";
-type ShapeOption = "circle" | "square" | "heart";
+// No more hardcoded types, they will be dynamic now.
+type Option = { option_type: string; option_name: string; base_price: number };
+type Rule = { rule_name: string; price: number };
 
 export default function Customise() {
-  const [weightKg, setWeightKg] = useState<WeightOption>(1);
-  const [icing, setIcing] = useState<IcingOption>("frost");
-  const [flavour, setFlavour] = useState<FlavourOption>("vanilla");
-  const [cakeType, setCakeType] = useState<CakeTypeOption>("normal");
-  const [shape, setShape] = useState<ShapeOption>("circle");
+  const [weightKg, setWeightKg] = useState<string | null>(null);
+  const [icing, setIcing] = useState<string | null>(null);
+  const [flavour, setFlavour] = useState<string | null>(null);
+  const [cakeType, setCakeType] = useState<string | null>(null);
+  const [shape, setShape] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -30,17 +24,47 @@ export default function Customise() {
   const [phone, setPhone] = useState("");
   const [withEgg, setWithEgg] = useState(true);
   const [photoCount, setPhotoCount] = useState(0);
-  const [options, setOptions] = useState<
-    Array<{ option_type: string; option_name: string; base_price: number }>
-  >([]);
-  const [extraPricing, setExtraPricing] = useState<
-    Array<{
-      addon_name: string;
-      weight_range: string;
-      addon_price: number;
-    }>
-  >([]);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const [options, setOptions] = useState<Option[]>([]);
+  const [extraPricing, setExtraPricing] = useState<Rule[]>([]);
+  const [showDialog, setShowDialog] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false); // New state for consent
+
+  // Filter options based on type
+  const weightOptions = useMemo(
+    () =>
+      options
+        .filter((o) => o.option_type === "weight")
+        .map((o) => o.option_name),
+    [options]
+  );
+  const icingOptions = useMemo(
+    () =>
+      options
+        .filter((o) => o.option_type === "icing")
+        .map((o) => o.option_name),
+    [options]
+  );
+  const flavourOptions = useMemo(
+    () =>
+      options
+        .filter((o) => o.option_type === "flavor")
+        .map((o) => o.option_name),
+    [options]
+  );
+  const cakeTypeOptions = useMemo(
+    () =>
+      options
+        .filter((o) => o.option_type === "cake_type")
+        .map((o) => o.option_name),
+    [options]
+  );
+  const shapeOptions = useMemo(
+    () =>
+      options
+        .filter((o) => o.option_type === "shape")
+        .map((o) => o.option_name),
+    [options]
+  );
 
   useEffect(() => {
     (async () => {
@@ -48,48 +72,88 @@ export default function Customise() {
       const { data, error } = await supabase
         .from("cake_options")
         .select("option_type,option_name,base_price");
-      if (!error && data) setOptions(data as any);
+      if (!error && data) {
+        setOptions(data);
+        if (data.length > 0) {
+          const initialWeight = data.find(
+            (o) => o.option_type === "weight"
+          )?.option_name;
+          const initialIcing = data.find(
+            (o) => o.option_type === "icing"
+          )?.option_name;
+          const initialFlavour = data.find(
+            (o) => o.option_type === "flavor"
+          )?.option_name;
+          const initialCakeType = data.find(
+            (o) => o.option_type === "cake_type"
+          )?.option_name;
+          const initialShape = data.find(
+            (o) => o.option_type === "shape"
+          )?.option_name;
+          setWeightKg(initialWeight || null);
+          setIcing(initialIcing || null);
+          setFlavour(initialFlavour || null);
+          setCakeType(initialCakeType || null);
+          setShape(initialShape || null);
+        }
+      }
 
       const { data: extraData, error: extraError } = await supabase
-        .from("extra_pricing")
-        .select("addon_name,weight_range,addon_price");
-      if (!extraError && extraData) setExtraPricing(extraData as any);
+        .from("extra_pricing_rules")
+        .select("rule_name,price");
+      if (!extraError && extraData) setExtraPricing(extraData);
     })();
   }, []);
 
   const sellingPrice = useMemo(() => {
-    const getPrice = (type: string, name: string | number) => {
+    const getOptionPrice = (type: string, name: string | null) => {
+      if (!name) return 0;
       const found = options.find(
-        (o) => o.option_type === type && String(o.option_name) === String(name)
+        (o) => o.option_type === type && o.option_name === name
       );
       return found ? Number(found.base_price) : 0;
     };
 
-    const eggSuffix = withEgg ? "with_egg" : "eggless";
-    const flavourWithWeight = `${flavour}_${weightKg}kg_${eggSuffix}`;
-    let total = getPrice("flavour_weight", flavourWithWeight);
-
-    const getExtraPrice = (
-      addonName: string,
-      currentWeight: number,
-      count = 1
-    ) => {
-      const addon = extraPricing.find((e) => e.addon_name === addonName);
-      if (!addon) return 0;
-      if (addon.weight_range === "per photo") {
-        return addon.addon_price * count;
-      }
-      const [min, max] = addon.weight_range.split("-").map(parseFloat);
-      if (currentWeight >= min && currentWeight <= max) {
-        return addon.addon_price;
-      }
-      return 0;
+    const getRulePrice = (ruleName: string) => {
+      const found = extraPricing.find((r) => r.rule_name === ruleName);
+      return found ? Number(found.price) : 0;
     };
 
-    if (icing === "fondant" || icing === "semi-fondant") {
-      total += getExtraPrice(icing, weightKg);
+    let total = 0;
+
+    total += getOptionPrice("weight", weightKg);
+    total += getOptionPrice("flavor", flavour);
+    total += getOptionPrice("shape", shape);
+    total += getOptionPrice("cake_type", cakeType);
+
+    if (!withEgg) {
+      total += getRulePrice("Eggless");
     }
-    total += getExtraPrice("Photo Cake", weightKg, photoCount);
+
+    const numericWeight = parseFloat(weightKg || "0");
+    if (icing === "Fondant") {
+      if (numericWeight >= 1 && numericWeight <= 1.5) {
+        total += getRulePrice("Fondant_1_1.5kg");
+      } else if (numericWeight >= 2 && numericWeight <= 4) {
+        total += getRulePrice("Fondant_2_4kg");
+      } else if (numericWeight >= 5) {
+        total += getRulePrice("Fondant_5kg_and_above");
+      }
+    }
+
+    if (icing === "Semi-Fondant") {
+      if (numericWeight >= 1 && numericWeight <= 1.5) {
+        total += getRulePrice("Semi-Fondant_1_1.5kg");
+      } else if (numericWeight >= 2 && numericWeight <= 4) {
+        total += getRulePrice("Semi-Fondant_2_4kg");
+      } else if (numericWeight >= 5) {
+        total += getRulePrice("Semi-Fondant_5kg_and_above");
+      }
+    }
+
+    if (photoCount > 0) {
+      total += getRulePrice("Photo Cake") * photoCount;
+    }
 
     return total;
   }, [
@@ -104,60 +168,145 @@ export default function Customise() {
     photoCount,
   ]);
 
-  const isStepCake = cakeType === "step";
-  const minWeightForStep = 3;
-  const weightOptions: WeightOption[] = [0.5, 1, 1.5, 2, 2.5, 3, 4, 5];
+  // Add this function to your component
+  const compressImage = async (
+    dataUrl: string,
+    maxWidth: number,
+    maxHeight: number,
+    quality: number
+  ): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        let width = img.width;
+        let height = img.height;
 
-  const icingColor = useMemo(() => {
-    const map: Record<IcingOption, string> = {
-      frost: "#fff1f3",
-      fondant: "#f5c6cf",
-      "semi-fondant": "#f8d9e0",
-    };
-    return map[icing];
-  }, [icing]);
+        if (width > height) {
+          if (width > maxWidth) {
+            height = height * (maxWidth / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = width * (maxHeight / height);
+            height = maxHeight;
+          }
+        }
 
-  const flavourColor = useMemo(() => {
-    const map: Record<FlavourOption, string> = {
-      vanilla: "#fef3c7",
-      chocolate: "#9f7046",
-      "red-velvet": "#e57373",
-      strawberry: "#f8b4c0",
-      butterscotch: "#f6c56c",
-    };
-    return map[flavour];
-  }, [flavour]);
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
 
-  const layersForWeight = useMemo(() => {
-    // Simple mapping: 1-2kg single layer, 3-4kg double, 5kg triple (for preview only)
-    if (isStepCake) return Math.max(2, Math.min(3, Math.floor(weightKg / 2)));
-    if (weightKg <= 2) return 1;
-    if (weightKg <= 4) return 2;
-    return 3;
-  }, [weightKg, isStepCake]);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+    });
+  };
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = () => setReferenceImage(reader.result as string);
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      const compressedImage = await compressImage(dataUrl, 1200, 1200, 0.8); // 1200px max, 80% quality
+      setReferenceImage(compressedImage);
+    };
     reader.readAsDataURL(file);
   };
 
-  // QR is generated after saving; no URL param syncing.
+  const invalidStep =
+    cakeType === "Step Cake / Tier Cake" && parseFloat(weightKg || "0") < 3;
 
-  const shapePath = useMemo(() => {
-    if (shape === "circle") return { rx: 100, ry: 60, d: "" };
-    if (shape === "square") return { rx: 8, ry: 8, d: "" };
-    // heart path
-    return {
-      rx: 0,
-      ry: 0,
-      d: "M150 60 C 150 30, 110 30, 110 60 C 110 90, 150 110, 150 130 C 150 110, 190 90, 190 60 C 190 30, 150 30, 150 60 Z",
-    };
-  }, [shape]);
+  const createAndDownloadImage = async (orderId: string, qrUrl: string) => {
+    const doc = new jsPDF({
+      unit: "pt",
+      format: "a4",
+      orientation: "portrait",
+    });
+    const margin = 30;
+    let y = margin;
+    const width = doc.internal.pageSize.getWidth();
 
-  const invalidStep = isStepCake && weightKg < minWeightForStep;
+    const logo = new Image();
+    logo.src = "/logo.png";
+    await new Promise((resolve) => {
+      logo.onload = () => resolve(true);
+    });
+    const logoWidth = 100;
+    const logoHeight = (logo.height * logoWidth) / logo.width;
+    const logoX = width / 2 - logoWidth / 2;
+    doc.addImage(logo, "PNG", logoX, y, logoWidth, logoHeight);
+    y += logoHeight + 20;
+
+    doc.setFontSize(24);
+    doc.setFont("Helvetica", "bold");
+    doc.text("Custom Cake Order", width / 2, y, { align: "center" });
+    y += 30;
+
+    doc.setFontSize(14);
+    doc.setFont("Helvetica", "normal");
+    const details = [
+      `Name: ${name}`,
+      `Phone: ${phone}`,
+      `Weight: ${weightKg} kg`,
+      `Flavour: ${flavour}`,
+      `Icing: ${icing}`,
+      `Cake Style: ${cakeType}`,
+      `Shape: ${shape}`,
+      `Egg Status: ${withEgg ? "With Egg" : "Eggless"}`,
+      `Photo Count: ${photoCount}`,
+      `Message: ${message || "None"}`,
+    ];
+    details.forEach((line) => {
+      doc.text(line, margin, y);
+      y += 20;
+    });
+    y += 30;
+
+    if (referenceImage) {
+      const refImg = new Image();
+      refImg.src = referenceImage;
+      await new Promise((resolve) => {
+        refImg.onload = () => resolve(true);
+      });
+      const maxImgWidth = width - 2 * margin;
+      const maxImgHeight = 200;
+      let imgWidth = refImg.width;
+      let imgHeight = refImg.height;
+
+      if (imgWidth > maxImgWidth || imgHeight > maxImgHeight) {
+        const ratio = Math.min(
+          maxImgWidth / imgWidth,
+          maxImgHeight / imgHeight
+        );
+        imgWidth *= ratio;
+        imgHeight *= ratio;
+      }
+      const imgX = width / 2 - imgWidth / 2;
+      doc.addImage(refImg, "JPEG", imgX, y, imgWidth, imgHeight);
+      y += imgHeight + 20;
+    }
+
+    const qrSize = 200;
+    const qrX = width / 2 - qrSize / 2;
+    doc.addImage(qrUrl, "PNG", qrX, y, qrSize, qrSize);
+    y += qrSize + 20;
+
+    doc.setFontSize(12);
+    doc.text("Scan to view this customisation", width / 2, y, {
+      align: "center",
+    });
+
+    doc.save(`PastryMagics_Cake_${orderId}.pdf`);
+  };
 
   return (
     <main className="px-4 py-6 max-w-7xl mx-auto">
@@ -166,14 +315,14 @@ export default function Customise() {
         Pick options below and watch your cake come to life.
       </p>
 
-      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="mt-8 grid grid-cols-1 gap-8">
         {/* Controls */}
         <section className="rounded-2xl border border-[var(--muted)] bg-white p-4 md:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Weight */}
             <div>
               <label className="block text-sm font-medium">Weight</label>
-              <div className="mt-2 grid grid-cols-5 gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {weightOptions.map((w) => (
                   <button
                     key={w}
@@ -195,9 +344,7 @@ export default function Customise() {
             <div>
               <label className="block text-sm font-medium">Icing Type</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {(
-                  ["frost", "fondant", "semi-fondant"] as IcingOption[]
-                ).map((opt) => (
+                {icingOptions.map((opt) => (
                   <button
                     key={opt}
                     onClick={() => setIcing(opt)}
@@ -208,11 +355,7 @@ export default function Customise() {
                     }`}
                     aria-pressed={icing === opt}
                   >
-                    {opt === "frost"
-                      ? "Frost Icing"
-                      : opt === "fondant"
-                      ? "Fondant"
-                      : "Semi Fondant"}
+                    {opt}
                   </button>
                 ))}
               </div>
@@ -223,20 +366,20 @@ export default function Customise() {
               <label className="block text-sm font-medium">Flavour</label>
               <select
                 className="mt-2 w-full rounded-md border border-[var(--muted)] bg-white px-3 py-2 text-sm"
-                value={flavour}
-                onChange={(e) => setFlavour(e.target.value as FlavourOption)}
+                value={flavour || ""}
+                onChange={(e) => setFlavour(e.target.value)}
               >
-                <option value="vanilla">Vanilla</option>
-                <option value="chocolate">Chocolate</option>
-                <option value="red-velvet">Red Velvet</option>
-                <option value="strawberry">Strawberry</option>
-                <option value="butterscotch">Butterscotch</option>
+                {flavourOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
               </select>
             </div>
 
             {/* Egg/Eggless */}
             <div>
-              <label className="block text-sm font-medium">Cake Type</label>
+              <label className="block text-sm font-medium">Egg Status</label>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   onClick={() => setWithEgg(true)}
@@ -263,48 +406,23 @@ export default function Customise() {
               </div>
             </div>
 
-            {/* Photo Cake */}
-            <div>
-              <label className="block text-sm font-medium">Photo Cake</label>
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  value={photoCount}
-                  onChange={(e) => setPhotoCount(parseInt(e.target.value))}
-                  className="w-20 rounded-md border border-[var(--muted)] bg-white px-3 py-2 text-sm"
-                />
-                <span>photos</span>
-              </div>
-            </div>
-
             {/* Cake Type */}
             <div>
               <label className="block text-sm font-medium">Cake Style</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(["pastry", "normal", "step"] as CakeTypeOption[]).map(
-                  (opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => setCakeType(opt)}
-                      className={`px-3 py-2 rounded-md text-sm border ${
-                        cakeType === opt
-                          ? "bg-[var(--primary)] text-white border-[var(--primary)]"
-                          : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                      }`}
-                      aria-pressed={cakeType === opt}
-                    >
-                      {opt === "step"
-                        ? "Step Cake"
-                        : opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </button>
-                  )
-                )}
-              </div>
-              {isStepCake && (
+              <select
+                className="mt-2 w-full rounded-md border border-[var(--muted)] bg-white px-3 py-2 text-sm"
+                value={cakeType || ""}
+                onChange={(e) => setCakeType(e.target.value)}
+              >
+                {cakeTypeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+              {cakeType === "Step Cake / Tier Cake" && (
                 <p className="mt-2 text-xs text-[var(--primary-600)]">
-                  Minimum total weight {minWeightForStep}kg. Adjust weight if
-                  needed.
+                  Minimum total weight 3kg. Adjust weight if needed.
                 </p>
               )}
             </div>
@@ -312,21 +430,38 @@ export default function Customise() {
             {/* Shape */}
             <div>
               <label className="block text-sm font-medium">Cake Shape</label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(["circle", "square", "heart"] as ShapeOption[]).map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => setShape(opt)}
-                    className={`px-3 py-2 rounded-md text-sm border ${
-                      shape === opt
-                        ? "bg-[var(--primary)] text-white border-[var(--primary)]"
-                        : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                    }`}
-                    aria-pressed={shape === opt}
-                  >
-                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                  </button>
+              <select
+                className="mt-2 w-full rounded-md border border-[var(--muted)] bg-white px-3 py-2 text-sm"
+                value={shape || ""}
+                onChange={(e) => setShape(e.target.value)}
+              >
+                {shapeOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Photo Cake */}
+            <div>
+              <label className="block text-sm font-medium">Photo Count</label>
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={() => setPhotoCount((prev) => Math.max(0, prev - 1))}
+                  className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                >
+                  -
+                </button>
+                <span className="text-xl font-semibold w-8 text-center">
+                  {photoCount}
+                </span>
+                <button
+                  onClick={() => setPhotoCount((prev) => prev + 1)}
+                  className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                >
+                  +
+                </button>
               </div>
             </div>
 
@@ -351,12 +486,15 @@ export default function Customise() {
               <label className="block text-sm font-medium">
                 Design reference (optional)
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                className="mt-2 block w-full text-sm"
-                onChange={onFileChange}
-              />
+              <label className="mt-2 block w-full rounded-md border border-[var(--muted)] bg-white text-sm cursor-pointer hover:bg-[var(--muted)]/50">
+                <span className="px-3 py-2 block">Choose File</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onFileChange}
+                />
+              </label>
               {referenceImage && (
                 <div className="mt-3">
                   <img
@@ -384,16 +522,36 @@ export default function Customise() {
                 <input
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Phone"
+                  type="tel"
+                  placeholder="Phone (10 digits)"
+                  pattern="[0-9]{10}"
                   className="mt-2 w-full rounded-md border border-[var(--muted)] bg-white px-3 py-2 text-sm"
                 />
               </div>
             </div>
           </div>
 
+          {/* New consent checkbox */}
+          <div className="mt-6 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="consent-checkbox"
+              checked={consentChecked}
+              onChange={(e) => setConsentChecked(e.target.checked)}
+              className="h-4 w-4 rounded"
+            />
+            <label
+              htmlFor="consent-checkbox"
+              className="text-sm text-foreground/70"
+            >
+              I agree to save my name and phone number for order tracking and a
+              better experience.
+            </label>
+          </div>
+
           {invalidStep && (
             <div className="mt-4 rounded-md border border-[var(--primary-600)] bg-[var(--primary-50)] p-3 text-sm text-[var(--primary-600)]">
-              Step cake requires at least {minWeightForStep}kg total weight.
+              Step cake requires at least 3kg total weight.
             </div>
           )}
 
@@ -402,8 +560,12 @@ export default function Customise() {
               className="px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)] disabled:opacity-60"
               disabled={invalidStep || saving}
               onClick={async () => {
-                if (!name.trim() || !phone.trim()) {
-                  alert("Please enter your name and phone number");
+                if (!name.trim() || !phone.trim() || !/^\d{10}$/.test(phone)) {
+                  alert("Please enter a valid name and 10-digit phone number");
+                  return;
+                }
+                if (!consentChecked) {
+                  alert("Please agree to the data storage consent.");
                   return;
                 }
                 try {
@@ -426,6 +588,8 @@ export default function Customise() {
                     body: JSON.stringify({
                       name,
                       phone,
+                      price: sellingPrice,
+                      referenceImage: referenceImageUrl,
                       weightKg,
                       icing,
                       flavour,
@@ -434,19 +598,24 @@ export default function Customise() {
                       message,
                       withEgg,
                       photoCount,
-                      price: sellingPrice,
-                      referenceImage: referenceImageUrl,
                     }),
                   });
                   if (!res.ok) throw new Error("Save failed");
                   const data = await res.json();
-                  setSavedId(data.id);
-                  const link = `${window.location.origin}/customise/${data.id}`;
+                  const orderId = data.id;
+                  setSavedId(orderId);
+                  const link = `${window.location.origin}/customise/${orderId}`;
                   const qr = await QRCode.toDataURL(link, {
                     margin: 1,
                     width: 160,
                   });
                   setQrDataUrl(qr);
+
+                  // Trigger automatic image download
+                  createAndDownloadImage(orderId, qr);
+
+                  // Open the dialog
+                  setShowDialog(true);
                 } catch {
                   alert("Could not save configuration. Please try again.");
                 } finally {
@@ -456,122 +625,43 @@ export default function Customise() {
             >
               {saving ? "Saving..." : "Save & Share"}
             </button>
-            <button
-              className="px-5 py-2 rounded-full border border-[var(--muted)] text-sm hover:bg-[var(--muted)]/50"
-              onClick={async () => {
-                const canvas = document.createElement("canvas");
-                const width = 800;
-                const height = 1000;
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext("2d");
-                if (!ctx) return;
-                // Background
-                ctx.fillStyle = "#fff8f3";
-                ctx.fillRect(0, 0, width, height);
-                // Title
-                ctx.fillStyle = "#2b1a12";
-                ctx.font = "bold 28px Montserrat, sans-serif";
-                ctx.fillText("Pastry Magics — Cake Customisation", 40, 60);
-                // Details
-                ctx.font = "16px Montserrat, sans-serif";
-                let y = 110;
-                const line = (label: string, value: string) => {
-                  ctx.fillText(`${label}: ${value}`, 40, y);
-                  y += 28;
-                };
-                line("Name", name || "-");
-                line("Phone", phone || "-");
-                line("Weight", `${weightKg}kg`);
-                line("Icing", icing);
-                line("Flavour", flavour);
-                line("Type", cakeType);
-                line("Shape", shape);
-                if (message) line("Text", message);
-                // Reference image thumbnail
-                if (referenceImage) {
-                  const refImg = new Image();
-                  refImg.onload = () => {
-                    const maxW = 260,
-                      maxH = 260;
-                    let w = refImg.width,
-                      h = refImg.height;
-                    const ratio = Math.min(maxW / w, maxH / h);
-                    w *= ratio;
-                    h *= ratio;
-                    ctx.drawImage(refImg, 40, 340, w, h);
-                  };
-                  refImg.src = referenceImage;
-                }
-                // QR code
-                if (qrDataUrl) {
-                  const qr = new Image();
-                  qr.onload = () => {
-                    ctx.drawImage(qr, width - 260, 120, 200, 200);
-                    // Footer note
-                    ctx.font = "12px Montserrat, sans-serif";
-                    ctx.fillText(
-                      "Scan to view this customisation",
-                      width - 260,
-                      340
-                    );
-                    canvas.toBlob((blob) => {
-                      if (!blob) return;
-                      const dl = document.createElement("a");
-                      dl.href = URL.createObjectURL(blob);
-                      dl.download = "pastrymagics-cake.png";
-                      document.body.appendChild(dl);
-                      dl.click();
-                      dl.remove();
-                    });
-                  };
-                  qr.src = qrDataUrl;
-                } else {
-                  canvas.toBlob((blob) => {
-                    if (!blob) return;
-                    const dl = document.createElement("a");
-                    dl.href = URL.createObjectURL(blob);
-                    dl.download = "pastrymagics-cake.png";
-                    document.body.appendChild(dl);
-                    dl.click();
-                    dl.remove();
-                  });
-                }
-              }}
-            >
-              Save Cake Image
-            </button>
           </div>
         </section>
-        {/* Price summary */}
-        <section className="rounded-2xl border border-[var(--muted)] bg-white p-4 md:p-6">
-          <h2 className="text-lg font-semibold">Price</h2>
-          <p className="mt-2 text-2xl font-semibold">₹{sellingPrice}</p>
-        </section>
-        {/* Saved link and QR */}
-        {savedId && (
-          <section className="rounded-2xl border border-[var(--muted)] bg-white p-4 md:p-6">
-            <h2 className="text-lg font-semibold">Saved Link</h2>
-            <div className="mt-3 flex items-center gap-3">
-              {qrDataUrl && (
-                <img
-                  src={qrDataUrl}
-                  alt="Share QR"
-                  className="h-20 w-20 rounded-md border border-[var(--muted)]"
-                />
-              )}
-              <a
-                href={`/customise/${savedId}`}
-                className="text-sm text-[var(--primary)] underline"
-              >
-                {`${
-                  typeof window !== "undefined" ? window.location.origin : ""
-                }/customise/${savedId}`}
-              </a>
-            </div>
-          </section>
-        )}
       </div>
+
+      {showDialog && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xl bg-opacity-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full text-center">
+            <h2 className="text-xl font-semibold mb-4">
+              Your Custom Cake is Saved!
+            </h2>
+            <p className="text-foreground/70 mb-4">
+              Your cake details have been saved. A PDF has been downloaded
+              automatically. You can also scan the QR code below to share the
+              link.
+            </p>
+            {qrDataUrl && (
+              <img
+                src={qrDataUrl}
+                alt="QR Code"
+                className="mx-auto my-4 w-48 h-48 rounded-md"
+              />
+            )}
+            <a
+              href={`/customise/${savedId}`}
+              className="text-sm text-[var(--primary)] underline block mt-2"
+            >
+              View your customisation link
+            </a>
+            <button
+              onClick={() => setShowDialog(false)}
+              className="mt-6 px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)]"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -33,6 +33,12 @@ export default function Header() {
             Menu
           </a>
           <a
+            href="/order-history"
+            className="opacity-80 hover:opacity-100 transition-opacity"
+          >
+            Order History
+          </a>
+          <a
             href="#contact"
             className="opacity-80 hover:opacity-100 transition-opacity"
           >
