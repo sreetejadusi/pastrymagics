@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { supabase } from "@/lib/supabase";
 import { jsPDF } from "jspdf";
+import Link from "next/link";
 
 // No more hardcoded types, they will be dynamic now.
 type Option = { option_type: string; option_name: string; base_price: number };
@@ -498,7 +499,7 @@ export default function Customise() {
               {referenceImage && (
                 <div className="mt-3">
                   <img
-                    src={referenceImage}
+                    src={referenceImage ?? undefined}
                     alt="Design reference"
                     className="max-h-40 rounded-md border border-[var(--muted)]"
                   />
@@ -647,12 +648,12 @@ export default function Customise() {
                 className="mx-auto my-4 w-48 h-48 rounded-md"
               />
             )}
-            <a
+            <Link
               href={`/customise/${savedId}`}
               className="text-sm text-[var(--primary)] underline block mt-2"
             >
               View your customisation link
-            </a>
+            </Link>
             <button
               onClick={() => setShowDialog(false)}
               className="mt-6 px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)]"

@@ -35,24 +35,24 @@ export default function Header() {
           >
             Customise
           </Link>
-          <a
+          <Link
             href="#menu"
             className="opacity-80 hover:opacity-100 transition-opacity"
           >
             Menu
-          </a>
+          </Link>
           <Link
             href="/order-history"
             className="opacity-80 hover:opacity-100 transition-opacity"
           >
             Order History
           </Link>
-          <a
+          <Link
             href="#contact"
             className="opacity-80 hover:opacity-100 transition-opacity"
           >
             Contact
-          </a>
+          </Link>
         </nav>
 
         {/* Mobile menu button */}
@@ -99,20 +99,20 @@ export default function Header() {
               >
                 Customise
               </Link>
-              <a
+              <Link
                 href="#menu"
                 className="px-3 py-2 rounded-md hover:bg-[var(--muted)]/60"
                 onClick={() => setOpen(false)}
               >
                 Menu
-              </a>
-              <a
+              </Link>
+              <Link
                 href="#contact"
                 className="px-3 py-2 rounded-md hover:bg-[var(--muted)]/60"
                 onClick={() => setOpen(false)}
               >
                 Contact
-              </a>
+              </Link>
             </div>
           </div>
         </div>

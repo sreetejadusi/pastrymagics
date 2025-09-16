@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="font-sans text-foreground">
@@ -43,20 +45,20 @@ export default function Home() {
             from your table.
           </p>
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-            <a
+            <Link
               href="/order"
               className="px-6 py-3 rounded-full bg-[var(--primary)] text-white text-sm font-medium hover:bg-[var(--primary-600)] transition-colors"
               aria-label="Order at the table"
             >
               Order at the Table
-            </a>
-            <a
+            </Link>
+            <Link
               href="/customise"
               className="px-6 py-3 rounded-full bg-white text-[var(--foreground)] text-sm font-medium border border-white/60 hover:bg-white/90 transition-colors"
               aria-label="Customize a cake"
             >
               Customise a Cake
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -72,7 +74,7 @@ export default function Home() {
             made it effortless.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-            <a
+            <Link
               href="/order"
               className="group rounded-2xl p-6 bg-white/70 backdrop-blur border border-[var(--muted)] hover:border-[var(--primary)] transition-colors shadow-sm hover:shadow-md"
               aria-label="Place instant dine-in order"
@@ -94,8 +96,8 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-            </a>
-            <a
+            </Link>
+            <Link
               id="customise"
               href="/customise"
               className="group rounded-2xl p-6 bg-white/70 backdrop-blur border border-[var(--muted)] hover:border-[var(--primary)] transition-colors shadow-sm hover:shadow-md"
@@ -116,7 +118,7 @@ export default function Home() {
                   </span>
                 </div>
               </div>
-            </a>
+            </Link>
           </div>
         </div>
       </section>
@@ -215,12 +217,12 @@ export default function Home() {
               </div>
               <div className="text-left">
                 <p className="font-semibold">Call Us</p>
-                <a
+                <Link
                   href="tel:+1234567890"
                   className="text-foreground/70 hover:underline"
                 >
                   +91 12345 67890
-                </a>
+                </Link>
               </div>
             </div>
           </div>
@@ -237,32 +239,32 @@ export default function Home() {
             Start a custom cake or send your table order now.
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <a
+            <Link
               href="/customise"
               className="px-6 py-3 rounded-full bg-white text-[var(--foreground)] text-sm font-medium hover:bg-white/90"
             >
               Start Customising
-            </a>
-            <a
+            </Link>
+            <Link
               href="/order"
               className="px-6 py-3 rounded-full border border-white text-white text-sm font-medium hover:bg-white hover:text-[var(--foreground)]"
             >
               Dine‑In Order
-            </a>
+            </Link>
           </div>
         </div>
       </section>
       <footer className="bg-[var(--primary)] text-white py-6 px-6 text-center text-sm text-foreground/70">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
-          <a href="/terms-of-service" className="hover:underline">
+          <Link href="/terms-of-service" className="hover:underline">
             Terms of Service
-          </a>
-          <a href="/privacy-policy" className="hover:underline">
+          </Link>
+          <Link href="/privacy-policy" className="hover:underline">
             Privacy Policy
-          </a>
-          <a href="/cookies-policy" className="hover:underline">
+          </Link>
+          <Link href="/cookies-policy" className="hover:underline">
             Cookies Policy
-          </a>
+          </Link>
         </div>
         <p className="mt-6 text-sm">
           © {new Date().getFullYear()} Pastry Magiccs
