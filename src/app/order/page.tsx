@@ -13,6 +13,14 @@ type Item = {
 };
 type CartItem = Item & { qty: number };
 
+type MenuItemApiResponse = {
+  id: string;
+  name: string;
+  price: string | number; // Assuming price might be a string from the DB
+  image_url: string;
+  stock_quantity: number;
+};
+
 export default function OrderPage() {
   const router = useRouter();
   const [menuItems, setMenuItems] = useState<Item[]>([]);
@@ -36,7 +44,7 @@ export default function OrderPage() {
         const res = await fetch("/api/menu");
         if (res.ok) {
           const data = await res.json();
-          const mapped: Item[] = (data || []).map((m: any) => ({
+          const mapped: Item[] = (data || []).map((m: MenuItemApiResponse) => ({
             id: m.id,
             name: m.name,
             price: Number(m.price) || 0,

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
 
-  let query = supabase.from("orders").select("id,created_at,status").single();
+  let queryBuilder = supabase.from("orders").select("id,created_at,status");
 
   // Check if the input is a valid UUID or an integer
   const isUUID =
@@ -22,10 +22,10 @@ export async function POST(req: NextRequest) {
   const isInteger = /^\d+$/.test(idOrNumber);
 
   if (isUUID) {
-    query = query.eq("id", idOrNumber);
+    queryBuilder = queryBuilder.eq("id", idOrNumber);
   } else if (isInteger) {
     // Cast the string to an integer for the query
-    query = query.eq("order_number", parseInt(idOrNumber));
+    queryBuilder = queryBuilder.eq("order_number", parseInt(idOrNumber));
   } else {
     return NextResponse.json(
       { error: "Invalid order ID format." },
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { data, error } = await query;
+  const { data, error } = await queryBuilder.single();
 
   if (error || !data) {
     console.error("Order not found or database error:", error);

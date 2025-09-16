@@ -61,11 +61,16 @@ export default async function OrderStatusPage({
     name: data.name as string,
     phone: data.phone as string,
     tableNumber: data.table_number as string | undefined,
-    items: (data.items as any[]) || [],
-    status: data.status as any,
+    items: (data.items as OrderItem[]) || [],
+    status: data.status as
+      | "placed"
+      | "preparing"
+      | "ready"
+      | "completed"
+      | "cancelled",
     total: Number(data.total) || 0,
     createdAt: data.created_at as string,
-    payment: data.payment as any,
+    payment: data.payment as "pay-at-counter",
   };
 
   const createdMs = new Date(order.createdAt).getTime();
@@ -123,7 +128,7 @@ export default async function OrderStatusPage({
             </div>
           </div>
 
-          <OrderActions order={order} cancellable={cancellable} />
+          <OrderActions order={data} />
         </div>
 
         <div

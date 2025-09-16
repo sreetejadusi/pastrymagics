@@ -24,7 +24,11 @@ export async function POST(req: Request) {
   const fileName = `${uuidv4()}.${fileExtension}`;
 
   try {
-    const { data, error } = await supabase.storage
+    if (!supabase) {
+      throw new Error("Supabase client is not initialized.");
+    }
+
+    const { error } = await supabase.storage
       .from("cake-images")
       .upload(fileName, buffer, {
         contentType: `image/${fileExtension}`,

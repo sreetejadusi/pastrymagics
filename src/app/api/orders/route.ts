@@ -1,10 +1,28 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+type OrderItem = {
+  price: number;
+  qty: number;
+};
+
+
 export async function POST(req: Request) {
   const { name, phone, tableNumber, items } = await req.json();
 
+  // Calculate total from items
+  const total = Array.isArray(items)
+    ? items.reduce((sum: number, item: OrderItem) => sum + (item.price * item.qty), 0)
+    : 0;
+
   let orderNumber: number;
+  if (!supabase) {
+    console.error("Supabase client is not initialized.");
+    return NextResponse.json(
+      { error: "Supabase client is not available." },
+      { status: 500 }
+    );
+  }
   try {
     const { data, error } = await supabase.rpc("get_next_order_number");
     if (error || data === null) {
@@ -22,12 +40,13 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
-
-  const total = items.reduce(
-    (sum: number, item: any) => sum + item.price * item.qty,
-    0
-  );
-
+  if (!supabase) {
+    console.error("Supabase client is not initialized.");
+    return NextResponse.json(
+      { error: "Supabase client is not available." },
+      { status: 500 }
+    );
+  }
   try {
     const { data, error } = await supabase
       .from("orders")

@@ -2,31 +2,30 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
-  const { name, phone, price, referenceImage, ...customization } =
+  const { name, description, price, image, category, available } =
     await req.json();
 
-  try {
-    const { data, error } = await supabase
-      .from("cakes")
-      .insert({
-        name,
-        phone,
-        total_price: price, // Now uses total_price
-        customization, // Stores all details in a single JSONB object
-        reference_image_url: referenceImage,
-      })
-      .select();
-
-    if (error) {
-      throw error;
-    }
-
-    return NextResponse.json({ id: data[0].id });
-  } catch (e) {
-    console.error("Error saving cake configuration:", e);
+  if (!supabase) {
     return NextResponse.json(
-      { error: "Could not save configuration." },
+      { error: "Supabase client not initialized" },
       { status: 500 }
     );
+  }
+
+  try {
+    const { data, error } = await supabase.from("cakes").insert({
+      name,
+      description,
+      price,
+      image,
+      category,
+      available,
+    });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ data }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: "Failed to add cake" }, { status: 500 });
   }
 }

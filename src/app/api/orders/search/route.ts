@@ -19,6 +19,13 @@ export async function GET(req: Request) {
     const startDate = `${date}T00:00:00.000Z`;
     const endDate = `${date}T23:59:59.999Z`;
 
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Supabase client is not initialized." },
+        { status: 500 }
+      );
+    }
+
     const { data, error } = await supabase
       .from("orders")
       .select("id")

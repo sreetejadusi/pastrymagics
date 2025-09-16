@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { jsPDF } from "jspdf";
 
 type OrderItem = {
@@ -231,7 +230,7 @@ export default function OrderActions({ order }: Props) {
               : `Cancel Order (${Math.ceil(timeRemaining)})`}
           </span>
         </button>
-        {!canCancel && order.status !== "cancelled" && (
+        {!canCancel && (
           <span className="text-xs text-foreground/60">
             Cancellation window expired.
           </span>

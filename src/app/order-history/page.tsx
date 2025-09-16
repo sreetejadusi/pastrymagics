@@ -20,7 +20,7 @@ export default async function OrderHistoryPage() {
     : [];
 
   let orders: Order[] = [];
-  if (orderIds.length > 0) {
+  if (orderIds.length > 0 && supabase) {
     const { data, error } = await supabase
       .from("orders")
       .select("id, order_number, created_at, total")
