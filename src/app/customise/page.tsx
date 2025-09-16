@@ -305,7 +305,7 @@ export default function Customise() {
       align: "center",
     });
 
-    doc.save(`PastryMagics_Cake_${orderId}.pdf`);
+    doc.save(`PastryMagiccs_Cake_${orderId}.pdf`);
   };
 
   return (

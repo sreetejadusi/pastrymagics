@@ -157,7 +157,7 @@ export default function Home() {
       <section className="py-16 px-6">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl text-center font-semibold">
-            Why Pastry Magics?
+            Why Pastry Magiccs?
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-10">
             <div className="rounded-2xl p-6 bg-white border border-[var(--muted)]">
@@ -188,6 +188,45 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Contact Section */}
+      <section id="contact" className="py-16 px-6 bg-[var(--muted)]/60">
+        <div className="max-w-6xl mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-semibold">Get in Touch</h2>
+          <p className="mt-2 text-foreground/70 max-w-2xl mx-auto">
+            Have a question? We’d love to hear from you.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row justify-center gap-24">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-full grid place-items-center bg-[var(--primary-50)] text-[var(--primary)] text-xl">
+                📍
+              </div>
+              <div className="text-left">
+                <p className="font-semibold">Visit Us</p>
+                <p className="text-foreground/70">
+                  104, Main Road, OPP. Naval Quarters,
+                  <br /> Old Kasara, Sai Nagar, Main Gate,
+                  <br /> Visakhapatnam, Andhra Pradesh - 530018
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 rounded-full grid place-items-center bg-[var(--primary-50)] text-[var(--primary)] text-xl">
+                📞
+              </div>
+              <div className="text-left">
+                <p className="font-semibold">Call Us</p>
+                <a
+                  href="tel:+1234567890"
+                  className="text-foreground/70 hover:underline"
+                >
+                  +91 12345 67890
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="py-16 px-6 text-center bg-[var(--primary)] text-white">
         <div className="max-w-3xl mx-auto">
@@ -211,11 +250,26 @@ export default function Home() {
               Dine‑In Order
             </a>
           </div>
-          <p className="mt-6 text-sm text-white/80">
-            © {new Date().getFullYear()} Pastry Magics
-          </p>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-[var(--primary)] text-white py-6 px-6 text-center text-sm text-foreground/70">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
+          <a href="/terms-of-service" className="hover:underline">
+            Terms of Service
+          </a>
+          <a href="/privacy-policy" className="hover:underline">
+            Privacy Policy
+          </a>
+          <a href="/cookies-policy" className="hover:underline">
+            Cookies Policy
+          </a>
+        </div>
+        <p className="mt-6 text-sm">
+          © {new Date().getFullYear()} Pastry Magiccs
+        </p>
+      </footer>
     </main>
   );
 }

@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pastry Magics — Custom Cakes & Fresh Bakes",
+  title: "Pastry Magiccs — Custom Cakes & Fresh Bakes",
   description:
-    "Design your perfect cake and place instant dine-in orders. Freshly baked delights crafted with love at Pastry Magics.",
+    "Design your perfect cake and place instant dine-in orders. Freshly baked delights crafted with love at Pastry Magiccs.",
 };
 
 export default function RootLayout({
@@ -29,9 +29,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="w-full top-0 left-0 right-0 z-20 p-2">
-          <Header />
-        </div>
+        <Header />
         {children}
       </body>
     </html>

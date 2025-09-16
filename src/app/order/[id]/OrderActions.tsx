@@ -101,7 +101,7 @@ export default function OrderActions({ order }: Props) {
 
     doc.setFont("Helvetica", "bold");
     doc.setFontSize(20);
-    doc.text("Pastry Magics", pageWidth / 2, y, { align: "center" });
+    doc.text("Pastry Magiccs", pageWidth / 2, y, { align: "center" });
     y += 20;
     doc.setFontSize(10);
     doc.setFont("Helvetica", "normal");
@@ -194,7 +194,7 @@ export default function OrderActions({ order }: Props) {
           onClick={() => {
             if (typeof window === "undefined") return;
             navigator.share?.({
-              title: "Pastry Magics Order",
+              title: "Pastry Magiccs Order",
               url: window.location.href,
             });
           }}

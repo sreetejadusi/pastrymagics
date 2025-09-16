@@ -2,17 +2,26 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isHome = pathname === "/";
 
   return (
-    <header className="relative z-20 w-full">
+    <header
+      className={`z-20 w-full top-0 left-0 right-0 p-2 ${
+        isHome ? "absolute" : "relative"
+      }`}
+    >
       <div className="flex items-center justify-between px-4 py-3">
         <Link href="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="Pastry Magics" className="h-10 w-auto" />
+          <img src="/logo.png" alt="Pastry Magiccs" className="h-14 w-auto" />
         </Link>
 
+        {/* Desktop nav */}
         <nav className="hidden md:flex items-center justify-center gap-6 text-[var(--foreground)] text-sm bg-background/80 h-10 px-6 backdrop-blur-3xl rounded-xl border border-[var(--muted)]">
           <Link
             href="/order"
@@ -32,12 +41,12 @@ export default function Header() {
           >
             Menu
           </a>
-          <a
+          <Link
             href="/order-history"
             className="opacity-80 hover:opacity-100 transition-opacity"
           >
             Order History
-          </a>
+          </Link>
           <a
             href="#contact"
             className="opacity-80 hover:opacity-100 transition-opacity"
@@ -46,6 +55,7 @@ export default function Header() {
           </a>
         </nav>
 
+        {/* Mobile menu button */}
         <button
           className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md border border-[var(--muted)] bg-background"
           aria-label="Toggle menu"
@@ -70,6 +80,7 @@ export default function Header() {
         </button>
       </div>
 
+      {/* Mobile nav */}
       {open && (
         <div className="md:hidden px-4 pb-4">
           <div className="rounded-xl border border-[var(--muted)] bg-background/90 backdrop-blur">
