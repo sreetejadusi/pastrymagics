@@ -32,6 +32,21 @@ export default function OrderPage() {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [consentChecked, setConsentChecked] = useState(false);
 
+  const [touched, setTouched] = useState({
+    name: false,
+    phone: false,
+    table: false,
+    consent: false,
+  });
+
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    phone: "",
+    table: "",
+    cart: "",
+    consent: "",
+  });
+
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const t = p.get("table");
@@ -57,10 +72,51 @@ export default function OrderPage() {
     })();
   }, []);
 
+  const validateForm = () => {
+    const newErrors = {
+      name: "",
+      phone: "",
+      table: "",
+      cart: "",
+      consent: "",
+    };
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required.";
+    }
+    const phonePattern = /^\d{10}$/;
+    if (!phone.trim() || !phonePattern.test(phone.trim())) {
+      newErrors.phone = "A valid 10-digit phone number is required.";
+    }
+    if (!table.trim()) {
+      newErrors.table = "Please select a table number.";
+    }
+    if (cart.length === 0) {
+      newErrors.cart = "Please add items to your order.";
+    }
+    if (!consentChecked) {
+      newErrors.consent = "You must agree to store your details.";
+    }
+
+    return newErrors;
+  };
+
+  // The total now also checks if the cart is not empty
   const total = useMemo(
     () => cart.reduce((s, it) => s + it.price * it.qty, 0),
     [cart]
   );
+
+  const isFormValid = useMemo(() => {
+    return (
+      !formErrors.name &&
+      !formErrors.phone &&
+      !formErrors.table &&
+      !formErrors.cart &&
+      !formErrors.consent &&
+      cart.length > 0 // This is the new condition
+    );
+  }, [formErrors, cart]);
 
   const addToCart = (it: Item) => {
     setCart((prev) => {
@@ -83,31 +139,16 @@ export default function OrderPage() {
   };
 
   async function placeOrder() {
-    if (!consentChecked) {
-      alert("Please agree to store your details for order tracking.");
-      return;
-    }
-    if (!name.trim() || !phone.trim()) {
-      alert("Please enter your name and phone number");
-      return;
-    }
-    if (cart.length === 0) {
-      alert("Please add items to your order");
-      return;
-    }
-    if (!table.trim()) {
-      alert("Please enter your table number");
-      return;
-    }
+    const errors = validateForm();
+    setFormErrors(errors);
+    setTouched({
+      name: true,
+      phone: true,
+      table: true,
+      consent: true,
+    });
 
-    const phonePattern = /^\d{10}$/;
-    if (!phonePattern.test(phone.trim())) {
-      alert("Please enter a valid 10-digit phone number.");
-      return;
-    }
-
-    if (isNaN(parseInt(table.trim()))) {
-      alert("Please enter a valid table number.");
+    if (!isFormValid) {
       return;
     }
 
@@ -134,11 +175,16 @@ export default function OrderPage() {
       setCart([]);
       router.push(`/order/${data.id}`);
     } catch (e) {
-      alert("Could not place order. Please try again.");
+      setFormErrors({
+        ...formErrors,
+        cart: "Could not place order. Please try again.",
+      });
     } finally {
       setPlacing(false);
     }
   }
+
+  const tableNumbers = Array.from({ length: 10 }, (_, i) => `${i + 1}`);
 
   return (
     <main className="px-4 py-6 max-w-6xl mx-auto">
@@ -235,35 +281,71 @@ export default function OrderPage() {
             <span className="text-sm">Subtotal</span>
             <span className="font-semibold">₹{total}</span>
           </div>
+
           <div className="mt-4 grid grid-cols-1 gap-3">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
-              className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm"
-            />
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Phone number"
-              type="tel" // Use type="tel" for better mobile keyboard experience
-              pattern="[0-9]{10}"
-              title="Phone number must be exactly 10 digits."
-              className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm"
-            />
-            <input
-              value={table}
-              onChange={(e) => setTable(e.target.value)}
-              placeholder="Table number"
-              type="number" // Use type="number"
-              className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm"
-            />
+            <div>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => setTouched((p) => ({ ...p, name: true }))}
+                placeholder="Your name"
+                className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm w-full"
+              />
+              {touched.name && formErrors.name && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
+              )}
+            </div>
+
+            <div>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
+                placeholder="Phone number"
+                type="tel"
+                className="rounded-md border border-[var(--muted)] px-3 py-2 text-sm w-full"
+              />
+              {touched.phone && formErrors.phone && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Table Number:
+              </label>
+              <div className="grid grid-cols-5 gap-2">
+                {tableNumbers.map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => {
+                      setTable(num);
+                      setTouched((p) => ({ ...p, table: true }));
+                    }}
+                    className={`p-3 rounded-md text-sm font-semibold transition-colors duration-200 ${
+                      table === num
+                        ? "bg-[var(--primary)] text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+              {touched.table && formErrors.table && (
+                <p className="text-red-500 text-xs mt-1">{formErrors.table}</p>
+              )}
+            </div>
+
             <div className="mt-4 flex items-center gap-2">
               <input
                 type="checkbox"
                 id="consent-checkbox"
                 checked={consentChecked}
-                onChange={(e) => setConsentChecked(e.target.checked)}
+                onChange={(e) => {
+                  setConsentChecked(e.target.checked);
+                  setTouched((p) => ({ ...p, consent: true }));
+                }}
                 className="h-4 w-4"
               />
               <label
@@ -273,14 +355,27 @@ export default function OrderPage() {
                 I agree to store my name and phone number for order tracking.
               </label>
             </div>
+            {touched.consent && formErrors.consent && (
+              <p className="text-red-500 text-xs mt-1">{formErrors.consent}</p>
+            )}
           </div>
+
           <button
             onClick={placeOrder}
-            disabled={placing}
-            className="mt-4 w-full px-4 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)]"
+            disabled={placing || !isFormValid}
+            className={`mt-4 w-full px-4 py-2 rounded-full text-white text-sm ${
+              isFormValid
+                ? "bg-[var(--primary)] hover:bg-[var(--primary-600)]"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
           >
             {placing ? "Placing..." : "Place Order"}
           </button>
+
+          {formErrors.cart && (
+            <p className="text-red-500 text-sm mt-2">{formErrors.cart}</p>
+          )}
+
           {createdOrderId && (
             <div className="mt-4 rounded-md border border-[var(--muted)] p-3 text-sm">
               <p className="font-medium">Order created</p>

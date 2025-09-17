@@ -503,6 +503,12 @@ export default function Customise() {
                     alt="Design reference"
                     className="max-h-40 rounded-md border border-[var(--muted)]"
                   />
+                  <button
+                    onClick={() => setReferenceImage(null)}
+                    className="mt-2 px-3 py-1 rounded-md text-xs text-white bg-red-500 hover:bg-red-600"
+                  >
+                    Remove Image
+                  </button>
                 </div>
               )}
             </div>
