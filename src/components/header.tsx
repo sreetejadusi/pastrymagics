@@ -17,8 +17,8 @@ export default function Header() {
       }`}
     >
       <div className="flex items-center justify-between px-4 py-3">
-        <Link href="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="Pastry Magiccs" className="h-14 w-auto" />
+        <Link href="/" className="flex items-center gap-2 bg-background/80 px-6 backdrop-blur-3xl rounded-xl">
+          <img src="/logo.png" alt="Pastry Magiccs" className="h-12 w-auto" />
         </Link>
 
         {/* Desktop nav */}

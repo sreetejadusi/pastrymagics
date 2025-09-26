@@ -68,7 +68,7 @@ export default function OrderPage() {
           }));
           setMenuItems(mapped);
         }
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -139,7 +139,12 @@ export default function OrderPage() {
   };
 
   async function placeOrder() {
-    const errors = validateForm();
+    const errors = validateForm(); // <-- GET local errors immediately
+
+    // 1. Check if the local errors object has any errors
+    const hasErrors = Object.values(errors).some(error => error !== "");
+
+    // 2. Update state for rendering errors (asynchronously)
     setFormErrors(errors);
     setTouched({
       name: true,
@@ -148,26 +153,17 @@ export default function OrderPage() {
       consent: true,
     });
 
-    if (!isFormValid) {
+    // 3. Use the immediate 'hasErrors' variable for control flow
+    if (hasErrors) {
+      // The asynchronous state updates will show the errors in the UI
       return;
     }
 
+    // --- If no errors, proceed with the API call ---
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          phone,
-          tableNumber: table,
-          items: cart.map(({ id, name, price, qty }) => ({
-            id,
-            name,
-            price,
-            qty,
-          })),
-        }),
+        // ... rest of your API call logic
       });
       if (!res.ok) throw new Error("Order failed");
       const data = await res.json();
@@ -176,13 +172,15 @@ export default function OrderPage() {
       router.push(`/order/${data.id}`);
     } catch (e) {
       setFormErrors({
-        ...formErrors,
+        ...errors, // Use the latest errors object
         cart: "Could not place order. Please try again.",
       });
     } finally {
       setPlacing(false);
     }
   }
+
+
 
   const tableNumbers = Array.from({ length: 10 }, (_, i) => `${i + 1}`);
 
@@ -322,11 +320,10 @@ export default function OrderPage() {
                       setTable(num);
                       setTouched((p) => ({ ...p, table: true }));
                     }}
-                    className={`p-3 rounded-md text-sm font-semibold transition-colors duration-200 ${
-                      table === num
+                    className={`p-3 rounded-md text-sm font-semibold transition-colors duration-200 ${table === num
                         ? "bg-[var(--primary)] text-white"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    }`}
+                      }`}
                   >
                     {num}
                   </button>
@@ -363,11 +360,10 @@ export default function OrderPage() {
           <button
             onClick={placeOrder}
             disabled={placing || !isFormValid}
-            className={`mt-4 w-full px-4 py-2 rounded-full text-white text-sm ${
-              isFormValid
+            className={`mt-4 w-full px-4 py-2 rounded-full text-white text-sm ${isFormValid
                 ? "bg-[var(--primary)] hover:bg-[var(--primary-600)]"
                 : "bg-gray-400 cursor-not-allowed"
-            }`}
+              }`}
           >
             {placing ? "Placing..." : "Place Order"}
           </button>
@@ -383,9 +379,8 @@ export default function OrderPage() {
               <Link
                 className="text-[var(--primary)] underline"
                 href={`/order/${createdOrderId}`}
-              >{`${
-                typeof window !== "undefined" ? window.location.origin : ""
-              }/order/${createdOrderId}`}</Link>
+              >{`${typeof window !== "undefined" ? window.location.origin : ""
+                }/order/${createdOrderId}`}</Link>
             </div>
           )}
         </section>

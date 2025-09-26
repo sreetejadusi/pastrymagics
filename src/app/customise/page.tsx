@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { supabase } from "@/lib/supabase";
 import { jsPDF } from "jspdf";
 import Link from "next/link";
+import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 
-// No more hardcoded types, they will be dynamic now.
+
+// Define the shape of the data retrieved from the database
 type Option = { option_type: string; option_name: string; base_price: number };
 type Rule = { rule_name: string; price: number };
+type ToysState = { [key: string]: number };
 
 export default function Customise() {
   const [weightKg, setWeightKg] = useState<string | null>(null);
@@ -16,6 +19,7 @@ export default function Customise() {
   const [flavour, setFlavour] = useState<string | null>(null);
   const [cakeType, setCakeType] = useState<string | null>(null);
   const [shape, setShape] = useState<string | null>(null);
+  const [toys, setToys] = useState<ToysState>({});
   const [message, setMessage] = useState("");
   const [referenceImage, setReferenceImage] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -27,8 +31,9 @@ export default function Customise() {
   const [photoCount, setPhotoCount] = useState(0);
   const [options, setOptions] = useState<Option[]>([]);
   const [extraPricing, setExtraPricing] = useState<Rule[]>([]);
+  const [showPricingModal, setShowPricingModal] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
-  const [consentChecked, setConsentChecked] = useState(false); // New state for consent
+  const [consentChecked, setConsentChecked] = useState(false);
 
   // Filter options based on type
   const weightOptions = useMemo(
@@ -66,6 +71,51 @@ export default function Customise() {
         .map((o) => o.option_name),
     [options]
   );
+  const toyOptions = useMemo(
+    () =>
+      options
+        .filter((o) => o.option_type === "toy")
+        .map((o) => o.option_name),
+    [options]
+  );
+
+
+  // --- VALIDATION LOGIC ---
+  const validationErrors = useMemo(() => {
+    const errors: { [key: string]: string | null } = {
+      fondantWeight: null,
+      semiFondantWeight: null,
+      requiredFields: null,
+      tierCakeWeight: null,
+    };
+    const numericWeight = parseFloat(weightKg || "0");
+    if (icing === "Fondant" && numericWeight < 1.5) {
+      errors.fondantWeight = "Fondant icing requires a minimum weight of 1.5kg.";
+    }
+    if (icing === "Semi-Fondant" && numericWeight < 1) {
+      errors.semiFondantWeight = "Semi-Fondant icing requires a minimum weight of 1.0kg.";
+    }
+    if (cakeType === "Step Cake / Tier Cake" && numericWeight < 3) {
+      errors.tierCakeWeight = "Tier cake requires a minimum total weight of 3kg.";
+    }
+    if (!weightKg || !icing || !flavour || !cakeType || !shape) {
+      errors.requiredFields = "Please select all primary cake options (Weight, Icing, Flavour, Style, Shape).";
+    }
+    return errors;
+  }, [icing, weightKg, cakeType, shape, flavour]);
+
+  const hasErrors = useMemo(() => {
+    return Object.values(validationErrors).some(err => err !== null);
+  }, [validationErrors]);
+
+  const isComplete = useMemo(() => {
+    return !!weightKg && !!icing && !!flavour && !!cakeType && !!shape;
+  }, [weightKg, icing, flavour, cakeType, shape]);
+
+  const isSavable = useMemo(() => {
+    return isComplete && !hasErrors;
+  }, [isComplete, hasErrors]);
+
 
   useEffect(() => {
     (async () => {
@@ -106,6 +156,7 @@ export default function Customise() {
     })();
   }, []);
 
+
   const sellingPrice = useMemo(() => {
     const getOptionPrice = (type: string, name: string | null) => {
       if (!name) return 0;
@@ -121,6 +172,10 @@ export default function Customise() {
     };
 
     let total = 0;
+    const numericWeight = parseFloat(weightKg || "0");
+    const isFondant = icing === "Fondant";
+    const isFourKgOrMore = numericWeight >= 4;
+    const isBasePromotionActive = isFondant && isFourKgOrMore;
 
     total += getOptionPrice("weight", weightKg);
     total += getOptionPrice("flavor", flavour);
@@ -131,7 +186,6 @@ export default function Customise() {
       total += getRulePrice("Eggless");
     }
 
-    const numericWeight = parseFloat(weightKg || "0");
     if (icing === "Fondant") {
       if (numericWeight >= 1 && numericWeight <= 1.5) {
         total += getRulePrice("Fondant_1_1.5kg");
@@ -153,8 +207,29 @@ export default function Customise() {
     }
 
     if (photoCount > 0) {
-      total += getRulePrice("Photo Cake") * photoCount;
+      const multiplier = Math.ceil(photoCount / 2);
+      const basePhotoPrice = getRulePrice("Photo Cake");
+      total += basePhotoPrice * multiplier;
     }
+
+    // --- TOY PRICING LOGIC ---
+    if (Object.keys(toys).length > 0) {
+        Object.entries(toys).forEach(([toyName, count]) => {
+            if (count > 0) {
+                const baseToyPrice = options.find(
+                    (o) => o.option_type === "toy" && o.option_name === toyName
+                )?.base_price || 0;
+
+                if (isBasePromotionActive && toyName === "Edible Toys") {
+                    const payableCount = Math.max(0, count - 5);
+                    total += baseToyPrice * payableCount;
+                } else {
+                    total += baseToyPrice * count;
+                }
+            }
+        });
+    }
+    // --- END TOY PRICING LOGIC ---
 
     return total;
   }, [
@@ -167,9 +242,127 @@ export default function Customise() {
     shape,
     withEgg,
     photoCount,
+    toys,
   ]);
 
-  // Add this function to your component
+  const pricingBreakdown = useMemo(() => {
+    const getOptionPrice = (type: string, name: string | null) => {
+        if (!name) return 0;
+        const found = options.find(o => o.option_type === type && o.option_name === name);
+        return found ? Number(found.base_price) : 0;
+    };
+    const getRulePrice = (ruleName: string) => {
+        const found = extraPricing.find(r => r.rule_name === ruleName);
+        return found ? Number(found.price) : 0;
+    };
+
+    const breakdown: { label: string; price: number }[] = [];
+    let currentTotal = 0;
+
+    // Base Options
+    if (weightKg) {
+        const price = getOptionPrice("weight", weightKg);
+        breakdown.push({ label: `Weight (${weightKg}kg)`, price });
+        currentTotal += price;
+    }
+    if (flavour) {
+        const price = getOptionPrice("flavor", flavour);
+        breakdown.push({ label: `Flavour (${flavour})`, price });
+        currentTotal += price;
+    }
+    if (shape) {
+        const price = getOptionPrice("shape", shape);
+        breakdown.push({ label: `Shape (${shape})`, price });
+        currentTotal += price;
+    }
+    if (cakeType) {
+        const price = getOptionPrice("cake_type", cakeType);
+        breakdown.push({ label: `Cake Style (${cakeType})`, price });
+        currentTotal += price;
+    }
+    if (icing) {
+        // Icing is a special case with rules, so we'll handle it separately
+    }
+
+    // Extra Rules
+    if (!withEgg) {
+        const price = getRulePrice("Eggless");
+        breakdown.push({ label: "Eggless", price });
+        currentTotal += price;
+    }
+
+    const numericWeight = parseFloat(weightKg || "0");
+    if (icing === "Fondant") {
+        if (numericWeight >= 1 && numericWeight <= 1.5) {
+            const price = getRulePrice("Fondant_1_1.5kg");
+            breakdown.push({ label: `Icing (${icing} 1-1.5kg)`, price });
+            currentTotal += price;
+        } else if (numericWeight >= 2 && numericWeight <= 4) {
+            const price = getRulePrice("Fondant_2_4kg");
+            breakdown.push({ label: `Icing (${icing} 2-4kg)`, price });
+            currentTotal += price;
+        } else if (numericWeight >= 5) {
+            const price = getRulePrice("Fondant_5kg_and_above");
+            breakdown.push({ label: `Icing (${icing} 5kg+)`, price });
+            currentTotal += price;
+        }
+    } else if (icing === "Semi-Fondant") {
+        if (numericWeight >= 1 && numericWeight <= 1.5) {
+            const price = getRulePrice("Semi-Fondant_1_1.5kg");
+            breakdown.push({ label: `Icing (${icing} 1-1.5kg)`, price });
+            currentTotal += price;
+        } else if (numericWeight >= 2 && numericWeight <= 4) {
+            const price = getRulePrice("Semi-Fondant_2_4kg");
+            breakdown.push({ label: `Icing (${icing} 2-4kg)`, price });
+            currentTotal += price;
+        } else if (numericWeight >= 5) {
+            const price = getRulePrice("Semi-Fondant_5kg_and_above");
+            breakdown.push({ label: `Icing (${icing} 5kg+)`, price });
+            currentTotal += price;
+        }
+    }
+
+
+    if (photoCount > 0) {
+        const multiplier = Math.ceil(photoCount / 2);
+        const basePhotoPrice = getRulePrice("Photo Cake");
+        const price = basePhotoPrice * multiplier;
+        breakdown.push({ label: `Photo Cake (${photoCount} photos)`, price });
+        currentTotal += price;
+    }
+
+    const isFondant = icing === "Fondant";
+    const isFourKgOrMore = numericWeight >= 4;
+    const isBasePromotionActive = isFondant && isFourKgOrMore;
+
+    if (Object.keys(toys).length > 0) {
+      Object.entries(toys).forEach(([toyName, count]) => {
+          if (count > 0) {
+              const baseToyPrice = options.find(
+                  (o) => o.option_type === "toy" && o.option_name === toyName
+              )?.base_price || 0;
+
+              if (isBasePromotionActive && toyName === "Edible Toys") {
+                  const payableCount = Math.max(0, count - 5);
+                  const price = baseToyPrice * payableCount;
+                  breakdown.push({ label: `${toyName} (${count} toys, 5 free)`, price });
+                  currentTotal += price;
+              } else {
+                  const price = baseToyPrice * count;
+                  breakdown.push({ label: `${toyName} (${count} toys)`, price });
+                  currentTotal += price;
+              }
+          }
+      });
+  }
+
+    // Display subtotal to confirm everything adds up
+    // breakdown.push({ label: "Subtotal", price: currentTotal });
+
+    return { breakdown, total: sellingPrice };
+}, [options, extraPricing, weightKg, icing, flavour, cakeType, shape, withEgg, photoCount, toys, sellingPrice]);
+
+
   const compressImage = async (
     dataUrl: string,
     maxWidth: number,
@@ -177,7 +370,7 @@ export default function Customise() {
     quality: number
   ): Promise<string> => {
     return new Promise((resolve) => {
-      const img = new Image();
+      const img = new (window as any).Image();
       img.src = dataUrl;
       img.onload = () => {
         const canvas = document.createElement("canvas");
@@ -217,17 +410,14 @@ export default function Customise() {
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
-      const compressedImage = await compressImage(dataUrl, 1200, 1200, 0.8); // 1200px max, 80% quality
+      const compressedImage = await compressImage(dataUrl, 1200, 1200, 0.8);
       setReferenceImage(compressedImage);
     };
     reader.readAsDataURL(file);
   };
 
-  const invalidStep =
-    cakeType === "Step Cake / Tier Cake" && parseFloat(weightKg || "0") < 3;
-
   const createAndDownloadImage = async (orderId: string, qrUrl: string) => {
-    const doc = new jsPDF({
+    const doc = new (window as any).jsPDF({
       unit: "pt",
       format: "a4",
       orientation: "portrait",
@@ -236,7 +426,7 @@ export default function Customise() {
     let y = margin;
     const width = doc.internal.pageSize.getWidth();
 
-    const logo = new Image();
+    const logo = new (window as any).Image();
     logo.src = "/logo.png";
     await new Promise((resolve) => {
       logo.onload = () => resolve(true);
@@ -264,16 +454,17 @@ export default function Customise() {
       `Shape: ${shape}`,
       `Egg Status: ${withEgg ? "With Egg" : "Eggless"}`,
       `Photo Count: ${photoCount}`,
+      ...Object.entries(toys).map(([toyName, count]) => `${toyName} Count: ${count}`),
       `Message: ${message || "None"}`,
     ];
-    details.forEach((line) => {
+    details.forEach((line: string) => {
       doc.text(line, margin, y);
       y += 20;
     });
     y += 30;
 
     if (referenceImage) {
-      const refImg = new Image();
+      const refImg = new (window as any).Image();
       refImg.src = referenceImage;
       await new Promise((resolve) => {
         refImg.onload = () => resolve(true);
@@ -309,6 +500,76 @@ export default function Customise() {
     doc.save(`PastryMagiccs_Cake_${orderId}.pdf`);
   };
 
+  const handleSaveAndShare = async () => {
+    if (!name.trim() || !phone.trim() || !/^\d{10}$/.test(phone)) {
+        alert("Please enter a valid name and 10-digit phone number");
+        return;
+    }
+    if (!consentChecked) {
+        alert("Please agree to the data storage consent.");
+        return;
+    }
+
+    try {
+        setSaving(true);
+        let referenceImageUrl: string | null = null;
+        if (referenceImage) {
+            const up = await fetch("/api/upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dataUrl: referenceImage }),
+            });
+            if (up.ok) {
+                const j = await up.json();
+                referenceImageUrl = j.url;
+            }
+        }
+        const res = await fetch("/api/cakes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                name,
+                phone,
+                price: sellingPrice,
+                referenceImage: referenceImageUrl,
+                weightKg,
+                icing,
+                flavour,
+                cakeType,
+                shape,
+                message,
+                withEgg,
+                photoCount,
+                toys,
+            }),
+        });
+        if (!res.ok) throw new Error("Save failed");
+        const data = await res.json();
+        const orderId = data.id;
+        setSavedId(orderId);
+        const link = `${window.location.origin}/customise/${orderId}`;
+        const qr = await QRCode.toDataURL(link, {
+            margin: 1,
+            width: 160,
+        });
+        setQrDataUrl(qr);
+
+        createAndDownloadImage(orderId, qr);
+
+        setShowPricingModal(false);
+        setShowDialog(true);
+    } catch {
+        alert("Could not save configuration. Please try again.");
+    } finally {
+        setSaving(false);
+    }
+  };
+
+  const isFondant = icing === "Fondant";
+  const numericWeight = parseFloat(weightKg || "0");
+  const isFourKgOrMore = numericWeight >= 4;
+  const isBasePromotionActive = isFondant && isFourKgOrMore;
+
   return (
     <main className="px-4 py-6 max-w-7xl mx-auto">
       <h1 className="text-3xl md:text-4xl text-center">Customise Your Cake</h1>
@@ -317,27 +578,34 @@ export default function Customise() {
       </p>
 
       <div className="mt-8 grid grid-cols-1 gap-8">
-        {/* Controls */}
         <section className="rounded-2xl border border-[var(--muted)] bg-white p-4 md:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Weight */}
             <div>
               <label className="block text-sm font-medium">Weight</label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {weightOptions.map((w) => (
-                  <button
-                    key={w}
-                    onClick={() => setWeightKg(w)}
-                    className={`px-3 py-2 rounded-md text-sm border ${
-                      weightKg === w
-                        ? "bg-[var(--primary)] text-white border-[var(--primary)]"
-                        : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                    }`}
-                    aria-pressed={weightKg === w}
-                  >
-                    {w}kg
-                  </button>
-                ))}
+                {weightOptions
+                  .map((w) => ({ weight: w, num: parseFloat(w) }))
+                  .sort((a, b) => a.num - b.num)
+                  .map(({ weight: w }) => (
+                    <button
+                      key={w}
+                      onClick={() => setWeightKg(w)}
+                      className={`relative px-3 pt-4 pb-2 rounded-md text-sm border transition-colors duration-200 ${
+                        weightKg === w
+                          ? "bg-[var(--primary)] text-white border-[var(--primary)]"
+                          : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                      }`}
+                      aria-pressed={weightKg === w}
+                    >
+                      {w === "0.5" && (
+                        <span className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[10px] bg-yellow-500 text-white font-bold px-1 rounded-full shadow-md">
+                          PREMIUM
+                        </span>
+                      )}
+                      {w}kg
+                    </button>
+                  ))}
               </div>
             </div>
 
@@ -360,6 +628,16 @@ export default function Customise() {
                   </button>
                 ))}
               </div>
+              {isFondant && (
+                <p className="mt-2 text-sm font-medium text-[var(--primary-600)]">
+                  ✨ **PROMO:** If you choose **4kg or more**, you get **5 edible toys FREE!**
+                </p>
+              )}
+              {(validationErrors.fondantWeight || validationErrors.semiFondantWeight) && (
+                <div className="mt-4 rounded-md border border-red-600 bg-red-50 p-3 text-sm text-red-700">
+                  {validationErrors.fondantWeight || validationErrors.semiFondantWeight}
+                </div>
+              )}
             </div>
 
             {/* Flavour */}
@@ -421,10 +699,10 @@ export default function Customise() {
                   </option>
                 ))}
               </select>
-              {cakeType === "Step Cake / Tier Cake" && (
-                <p className="mt-2 text-xs text-[var(--primary-600)]">
-                  Minimum total weight 3kg. Adjust weight if needed.
-                </p>
+              {validationErrors.tierCakeWeight && (
+                <div className="mt-2 rounded-md border border-red-600 bg-red-50 p-3 text-xs text-red-700">
+                  {validationErrors.tierCakeWeight}
+                </div>
               )}
             </div>
 
@@ -466,6 +744,47 @@ export default function Customise() {
               </div>
             </div>
 
+            {/* Toy Selection */}
+            {toyOptions.map(toyName => (
+                <div key={toyName}>
+                    <label className="block text-sm font-medium">{toyName}</label>
+                    <div className="mt-2 flex items-center gap-2">
+                        <button
+                            onClick={() => setToys(prev => ({
+                                ...prev,
+                                [toyName]: Math.max(0, (prev[toyName] || 0) - 1)
+                            }))}
+                            className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                            disabled={!toys[toyName] || toys[toyName] === 0}
+                        >
+                            -
+                        </button>
+                        <span className="text-xl font-semibold w-8 text-center">
+                            {toys[toyName] || 0}
+                        </span>
+                        <button
+                            onClick={() => setToys(prev => ({
+                                ...prev,
+                                [toyName]: (prev[toyName] || 0) + 1
+                            }))}
+                            className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                        >
+                            +
+                        </button>
+                    </div>
+                    {toyName === "Edible Toys" && isBasePromotionActive && (toys[toyName] || 0) > 0 && (
+                        <p className="mt-1 text-xs text-green-600">
+                            🎉 **Promotion Applied!** First 5 Edible Toys are FREE.
+                        </p>
+                    )}
+                    {toyName === "Non Edible Toys" && (toys[toyName] || 0) > 0 && (
+                        <p className="mt-1 text-xs text-foreground/60">
+                            Non Edible Toys are charged at full price.
+                        </p>
+                    )}
+                </div>
+            ))}
+
             {/* Text on Cake */}
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium">Text on Cake</label>
@@ -498,9 +817,11 @@ export default function Customise() {
               </label>
               {referenceImage && (
                 <div className="mt-3">
-                  <img
+                  <Image
                     src={referenceImage ?? undefined}
                     alt="Design reference"
+                    width={160}
+                    height={160}
                     className="max-h-40 rounded-md border border-[var(--muted)]"
                   />
                   <button
@@ -556,88 +877,76 @@ export default function Customise() {
             </label>
           </div>
 
-          {invalidStep && (
-            <div className="mt-4 rounded-md border border-[var(--primary-600)] bg-[var(--primary-50)] p-3 text-sm text-[var(--primary-600)]">
-              Step cake requires at least 3kg total weight.
+          {(validationErrors.fondantWeight || validationErrors.semiFondantWeight || validationErrors.tierCakeWeight || validationErrors.requiredFields) && (
+            <div className="mt-4 rounded-md border border-red-600 bg-red-50 p-3 text-sm text-red-700">
+                {validationErrors.fondantWeight || validationErrors.semiFondantWeight || validationErrors.tierCakeWeight || validationErrors.requiredFields}
             </div>
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
-              className="px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)] disabled:opacity-60"
-              disabled={invalidStep || saving}
-              onClick={async () => {
-                if (!name.trim() || !phone.trim() || !/^\d{10}$/.test(phone)) {
-                  alert("Please enter a valid name and 10-digit phone number");
-                  return;
-                }
-                if (!consentChecked) {
-                  alert("Please agree to the data storage consent.");
-                  return;
-                }
-                try {
-                  setSaving(true);
-                  let referenceImageUrl: string | null = null;
-                  if (referenceImage) {
-                    const up = await fetch("/api/upload", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ dataUrl: referenceImage }),
-                    });
-                    if (up.ok) {
-                      const j = await up.json();
-                      referenceImageUrl = j.url;
-                    }
-                  }
-                  const res = await fetch("/api/cakes", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      name,
-                      phone,
-                      price: sellingPrice,
-                      referenceImage: referenceImageUrl,
-                      weightKg,
-                      icing,
-                      flavour,
-                      cakeType,
-                      shape,
-                      message,
-                      withEgg,
-                      photoCount,
-                    }),
-                  });
-                  if (!res.ok) throw new Error("Save failed");
-                  const data = await res.json();
-                  const orderId = data.id;
-                  setSavedId(orderId);
-                  const link = `${window.location.origin}/customise/${orderId}`;
-                  const qr = await QRCode.toDataURL(link, {
-                    margin: 1,
-                    width: 160,
-                  });
-                  setQrDataUrl(qr);
-
-                  // Trigger automatic image download
-                  createAndDownloadImage(orderId, qr);
-
-                  // Open the dialog
-                  setShowDialog(true);
-                } catch {
-                  alert("Could not save configuration. Please try again.");
-                } finally {
-                  setSaving(false);
+              className={`px-5 py-2 rounded-full text-white text-sm ${
+                isSavable
+                  ? "bg-[var(--primary)] hover:bg-[var(--primary-600)]"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
+              disabled={!isSavable}
+              onClick={() => {
+                if (isSavable) {
+                  setShowPricingModal(true);
+                } else {
+                  // This provides an immediate alert for a better UX, even if the button is disabled
+                  alert("Please correct the errors in the form before proceeding.");
                 }
               }}
             >
-              {saving ? "Saving..." : "Save & Share"}
+              Next
             </button>
           </div>
         </section>
       </div>
 
+      {showPricingModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg p-6 max-w-lg w-full text-left">
+            <h2 className="text-2xl font-semibold mb-4">Pricing Breakdown</h2>
+            <div className="space-y-2 text-sm">
+                {pricingBreakdown.breakdown.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                        <span className="text-foreground/80">{item.label}</span>
+                        <span className="font-medium">₹{item.price.toFixed(2)}</span>
+                    </div>
+                ))}
+            </div>
+            <hr className="my-4" />
+            <div className="flex justify-between items-center font-semibold text-lg">
+                <span>Total Price</span>
+                <span>₹{pricingBreakdown.total.toFixed(2)}</span>
+            </div>
+            <p className="text-xs text-foreground/60 mt-4">
+                * Taxes and delivery charges may be added at checkout.
+            </p>
+            <div className="mt-6 flex gap-3">
+                <button
+                    className="flex-1 px-5 py-2 rounded-full border border-[var(--muted)] text-sm hover:bg-[var(--muted)]/50"
+                    onClick={() => setShowPricingModal(false)}
+                >
+                    Go Back
+                </button>
+                <button
+                    className="flex-1 px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)] disabled:opacity-60"
+                    onClick={handleSaveAndShare}
+                    disabled={saving}
+                >
+                    {saving ? "Saving..." : "Save & Share"}
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showDialog && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xl bg-opacity-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xl flex items-center justify-center p-4">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full text-center">
             <h2 className="text-xl font-semibold mb-4">
               Your Custom Cake is Saved!
@@ -648,9 +957,11 @@ export default function Customise() {
               link.
             </p>
             {qrDataUrl && (
-              <img
+              <Image
                 src={qrDataUrl}
                 alt="QR Code"
+                width={192}
+                height={192}
                 className="mx-auto my-4 w-48 h-48 rounded-md"
               />
             )}

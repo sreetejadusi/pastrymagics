@@ -233,7 +233,7 @@ export default function Home() {
       <section className="py-16 px-6 text-center bg-[var(--primary)] text-white">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-semibold">
-            Ready to Taste the Magic?
+            Ready to Taste the Magicc?
           </h2>
           <p className="mt-2 text-white/90">
             Start a custom cake or send your table order now.
@@ -255,19 +255,8 @@ export default function Home() {
         </div>
       </section>
       <footer className="bg-[var(--primary)] text-white py-6 px-6 text-center text-sm text-foreground/70">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-center gap-4 sm:gap-6">
-          <Link href="/terms-of-service" className="hover:underline">
-            Terms of Service
-          </Link>
-          <Link href="/privacy-policy" className="hover:underline">
-            Privacy Policy
-          </Link>
-          <Link href="/cookies-policy" className="hover:underline">
-            Cookies Policy
-          </Link>
-        </div>
         <p className="mt-6 text-sm">
-          © {new Date().getFullYear()} Pastry Magiccs
+          © {new Date().getFullYear()} Pastry Magiccs. Designed and Built by <a href="https://tedestudio.com" target="_blank">TedeStudio</a>
         </p>
       </footer>
     </main>
