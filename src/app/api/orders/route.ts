@@ -8,79 +8,72 @@ type OrderItem = {
 
 export async function POST(req: Request) {
   if (!supabase) {
-    console.error("Supabase client not initialized.");
+    console.error("Supabase client is not initialized.");
     return NextResponse.json(
       { error: "Supabase client not available" },
       { status: 500 }
     );
   }
 
-  const { name, phone, tableNumber, items } = await req.json();
-
-  // Calculate total
-  const total = Array.isArray(items)
-    ? items.reduce(
-        (sum: number, item: OrderItem) => sum + item.price * item.qty,
-        0
-      )
-    : 0;
-
-  const today = new Date();
-  const orderDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
-  let orderNumber = "";
-
   try {
-    // Create or increment counter safely
-    const { data: existingData, error: selectError } = await supabase
+    const { name, phone, tableNumber, items } = await req.json();
+
+    if (!items || !Array.isArray(items)) {
+      return NextResponse.json(
+        { error: "Items are required" },
+        { status: 400 }
+      );
+    }
+
+    // Calculate total price
+    const total = items.reduce(
+      (sum: number, item: OrderItem) => sum + item.price * item.qty,
+      0
+    );
+
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split("T")[0];
+
+    // 1️⃣ Upsert daily counter (atomic)
+    const { data: counterRow, error: upsertError } = await supabase
       .from("daily_order_counter")
-      .select("*")
-      .eq("order_date", orderDate)
+      .upsert(
+        { order_date: today, counter: 1 }, // initial row if not exists
+        { onConflict: "order_date" }
+      )
+      .select("counter")
       .single();
 
-    if (selectError && selectError.code !== "PGRST116") {
-      // PGRST116 = not found, we will insert
-      throw selectError;
+    if (upsertError || !counterRow) {
+      console.error("Failed to get or create counter:", upsertError);
+      return NextResponse.json(
+        { error: "Could not generate order number" },
+        { status: 500 }
+      );
     }
 
-    let counter = 1;
-    if (!existingData) {
-      // Insert new row for today
-      const { data: insertData, error: insertError } = await supabase
-        .from("daily_order_counter")
-        .insert({ order_date: orderDate, counter })
-        .select()
-        .single();
+    // 2️⃣ Atomically increment counter
+    const { data: updatedRow, error: updateError } = await supabase
+      .from("daily_order_counter")
+      .update({ counter: counterRow.counter + 1 })
+      .eq("order_date", today)
+      .select()
+      .single();
 
-      if (insertError) throw insertError;
-      counter = insertData.counter;
-    } else {
-      // Increment existing counter atomically
-      const { data: updateData, error: updateError } = await supabase
-        .from("daily_order_counter")
-        .update({ counter: existingData.counter + 1 })
-        .eq("order_date", orderDate)
-        .select()
-        .single();
-
-      if (updateError) throw updateError;
-      counter = updateData.counter;
+    if (updateError || !updatedRow) {
+      console.error("Failed to increment counter:", updateError);
+      return NextResponse.json(
+        { error: "Could not generate order number" },
+        { status: 500 }
+      );
     }
 
-    // Format: MMDD-XXX
-    const mm = String(today.getMonth() + 1).padStart(2, "0");
-    const dd = String(today.getDate()).padStart(2, "0");
-    const num = String(counter).padStart(3, "0");
-    orderNumber = `${mm}${dd}-${num}`;
-  } catch (e) {
-    console.error("Error generating order number:", e);
-    return NextResponse.json(
-      { error: "Could not generate order number" },
-      { status: 500 }
-    );
-  }
+    const orderNumber = `${today.replace(/-/g, "")}${String(
+      updatedRow.counter
+    ).padStart(3, "0")}`;
 
-  try {
-    const { data, error } = await supabase
+    // 3️⃣ Insert order
+    const { data: orderData, error: orderError } = await supabase
       .from("orders")
       .insert({
         order_number: orderNumber,
@@ -95,16 +88,25 @@ export async function POST(req: Request) {
       .select("id, order_number")
       .single();
 
-    if (error) throw error;
+    if (orderError || !orderData) {
+      console.error("Failed to place order:", orderError);
+      return NextResponse.json(
+        { error: "Could not place order" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
-      { id: data.id, orderNumber: data.order_number },
+      {
+        id: orderData.id,
+        orderNumber: orderData.order_number,
+      },
       { status: 201 }
     );
-  } catch (e) {
-    console.error("Error placing order:", e);
+  } catch (err) {
+    console.error("Unexpected error:", err);
     return NextResponse.json(
-      { error: "Could not place order" },
+      { error: "Something went wrong" },
       { status: 500 }
     );
   }
