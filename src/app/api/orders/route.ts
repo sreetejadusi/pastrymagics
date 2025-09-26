@@ -6,48 +6,46 @@ type OrderItem = {
   qty: number;
 };
 
-
 export async function POST(req: Request) {
-  const { name, phone, tableNumber, items } = await req.json();
-
-  // Calculate total from items
-  const total = Array.isArray(items)
-    ? items.reduce((sum: number, item: OrderItem) => sum + (item.price * item.qty), 0)
-    : 0;
-
-  let orderNumber: number;
-  if (!supabase) {
-    console.error("Supabase client is not initialized.");
-    return NextResponse.json(
-      { error: "Supabase client is not available." },
-      { status: 500 }
-    );
-  }
   try {
-    const { data, error } = await supabase.rpc("get_next_order_number");
-    if (error || data === null) {
-      console.error("Error getting next order number:", error);
+    const { name, phone, tableNumber, items } = await req.json();
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return NextResponse.json(
+        { error: "Order must contain at least one item." },
+        { status: 400 }
+      );
+    }
+
+    // Calculate total
+    const total = items.reduce(
+      (sum: number, item: OrderItem) => sum + item.price * item.qty,
+      0
+    );
+
+    if (!supabase) {
+      console.error("Supabase client is not initialized.");
+      return NextResponse.json(
+        { error: "Supabase client is not available." },
+        { status: 500 }
+      );
+    }
+
+    // Use sequence to get next order number
+    const { data: orderNumberData, error: orderNumberError } =
+      await supabase.rpc("get_next_order_number");
+
+    if (orderNumberError || orderNumberData === null) {
+      console.error("Error getting next order number:", orderNumberError);
       return NextResponse.json(
         { error: "Could not generate order number." },
         { status: 500 }
       );
     }
-    orderNumber = data;
-  } catch (e) {
-    console.error("Error in RPC call:", e);
-    return NextResponse.json(
-      { error: "Could not generate order number." },
-      { status: 500 }
-    );
-  }
-  if (!supabase) {
-    console.error("Supabase client is not initialized.");
-    return NextResponse.json(
-      { error: "Supabase client is not available." },
-      { status: 500 }
-    );
-  }
-  try {
+
+    const orderNumber = orderNumberData;
+
+    // Insert order
     const { data, error } = await supabase
       .from("orders")
       .insert({
@@ -60,10 +58,14 @@ export async function POST(req: Request) {
         total,
         payment: "pay-at-counter",
       })
-      .select("id, order_number"); // Select the order number to return it to the client
+      .select("id, order_number");
 
     if (error) {
-      throw error;
+      console.error("Error placing order:", error);
+      return NextResponse.json(
+        { error: "Could not place order." },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
@@ -71,9 +73,9 @@ export async function POST(req: Request) {
       orderNumber: data[0].order_number,
     });
   } catch (e) {
-    console.error("Error placing order:", e);
+    console.error("Unexpected error in POST /orders:", e);
     return NextResponse.json(
-      { error: "Could not place order." },
+      { error: "Unexpected server error." },
       { status: 500 }
     );
   }
