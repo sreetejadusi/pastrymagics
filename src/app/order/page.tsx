@@ -139,12 +139,7 @@ export default function OrderPage() {
   };
 
   async function placeOrder() {
-    const errors = validateForm(); // <-- GET local errors immediately
-
-    // 1. Check if the local errors object has any errors
-    const hasErrors = Object.values(errors).some(error => error !== "");
-
-    // 2. Update state for rendering errors (asynchronously)
+    const errors = validateForm();
     setFormErrors(errors);
     setTouched({
       name: true,
@@ -153,17 +148,28 @@ export default function OrderPage() {
       consent: true,
     });
 
-    // 3. Use the immediate 'hasErrors' variable for control flow
+    // Check using freshly computed errors
+    const hasErrors = Object.values(errors).some((err) => err !== "");
     if (hasErrors) {
-      // The asynchronous state updates will show the errors in the UI
-      return;
+      return; // stop placing order
     }
 
-    // --- If no errors, proceed with the API call ---
     setPlacing(true);
     try {
       const res = await fetch("/api/orders", {
-        // ... rest of your API call logic
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone,
+          tableNumber: table,
+          items: cart.map(({ id, name, price, qty }) => ({
+            id,
+            name,
+            price,
+            qty,
+          })),
+        }),
       });
       if (!res.ok) throw new Error("Order failed");
       const data = await res.json();
@@ -171,15 +177,14 @@ export default function OrderPage() {
       setCart([]);
       router.push(`/order/${data.id}`);
     } catch (e) {
-      setFormErrors({
-        ...errors, // Use the latest errors object
+      setFormErrors((prev) => ({
+        ...prev,
         cart: "Could not place order. Please try again.",
-      });
+      }));
     } finally {
       setPlacing(false);
     }
   }
-
 
 
   const tableNumbers = Array.from({ length: 10 }, (_, i) => `${i + 1}`);
