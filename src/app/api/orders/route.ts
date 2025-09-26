@@ -7,45 +7,79 @@ type OrderItem = {
 };
 
 export async function POST(req: Request) {
-  try {
-    const { name, phone, tableNumber, items } = await req.json();
-
-    if (!Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        { error: "Order must contain at least one item." },
-        { status: 400 }
-      );
-    }
-
-    // Calculate total
-    const total = items.reduce(
-      (sum: number, item: OrderItem) => sum + item.price * item.qty,
-      0
+  if (!supabase) {
+    console.error("Supabase client not initialized.");
+    return NextResponse.json(
+      { error: "Supabase client not available" },
+      { status: 500 }
     );
+  }
 
-    if (!supabase) {
-      console.error("Supabase client is not initialized.");
-      return NextResponse.json(
-        { error: "Supabase client is not available." },
-        { status: 500 }
-      );
+  const { name, phone, tableNumber, items } = await req.json();
+
+  // Calculate total
+  const total = Array.isArray(items)
+    ? items.reduce(
+        (sum: number, item: OrderItem) => sum + item.price * item.qty,
+        0
+      )
+    : 0;
+
+  const today = new Date();
+  const orderDate = today.toISOString().split("T")[0]; // YYYY-MM-DD
+  let orderNumber = "";
+
+  try {
+    // Create or increment counter safely
+    const { data: existingData, error: selectError } = await supabase
+      .from("daily_order_counter")
+      .select("*")
+      .eq("order_date", orderDate)
+      .single();
+
+    if (selectError && selectError.code !== "PGRST116") {
+      // PGRST116 = not found, we will insert
+      throw selectError;
     }
 
-    // Use sequence to get next order number
-    const { data: orderNumberData, error: orderNumberError } =
-      await supabase.rpc("get_next_order_number");
+    let counter = 1;
+    if (!existingData) {
+      // Insert new row for today
+      const { data: insertData, error: insertError } = await supabase
+        .from("daily_order_counter")
+        .insert({ order_date: orderDate, counter })
+        .select()
+        .single();
 
-    if (orderNumberError || orderNumberData === null) {
-      console.error("Error getting next order number:", orderNumberError);
-      return NextResponse.json(
-        { error: "Could not generate order number." },
-        { status: 500 }
-      );
+      if (insertError) throw insertError;
+      counter = insertData.counter;
+    } else {
+      // Increment existing counter atomically
+      const { data: updateData, error: updateError } = await supabase
+        .from("daily_order_counter")
+        .update({ counter: existingData.counter + 1 })
+        .eq("order_date", orderDate)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+      counter = updateData.counter;
     }
 
-    const orderNumber = orderNumberData;
+    // Format: MMDD-XXX
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const num = String(counter).padStart(3, "0");
+    orderNumber = `${mm}${dd}-${num}`;
+  } catch (e) {
+    console.error("Error generating order number:", e);
+    return NextResponse.json(
+      { error: "Could not generate order number" },
+      { status: 500 }
+    );
+  }
 
-    // Insert order
+  try {
     const { data, error } = await supabase
       .from("orders")
       .insert({
@@ -58,24 +92,19 @@ export async function POST(req: Request) {
         total,
         payment: "pay-at-counter",
       })
-      .select("id, order_number");
+      .select("id, order_number")
+      .single();
 
-    if (error) {
-      console.error("Error placing order:", error);
-      return NextResponse.json(
-        { error: "Could not place order." },
-        { status: 500 }
-      );
-    }
+    if (error) throw error;
 
-    return NextResponse.json({
-      id: data[0].id,
-      orderNumber: data[0].order_number,
-    });
-  } catch (e) {
-    console.error("Unexpected error in POST /orders:", e);
     return NextResponse.json(
-      { error: "Unexpected server error." },
+      { id: data.id, orderNumber: data.order_number },
+      { status: 201 }
+    );
+  } catch (e) {
+    console.error("Error placing order:", e);
+    return NextResponse.json(
+      { error: "Could not place order" },
       { status: 500 }
     );
   }
