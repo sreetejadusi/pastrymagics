@@ -16,6 +16,7 @@ export async function POST(req: Request) {
     message,
     withEgg,
     photoCount,
+    toys
   } = await req.json();
 
   if (!supabase) {
@@ -36,6 +37,7 @@ export async function POST(req: Request) {
       message,
       withEgg,
       photoCount,
+      toys
     };
 
     // Insert the data into the 'cakes' table, matching the schema
