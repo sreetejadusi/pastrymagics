@@ -214,20 +214,20 @@ export default function Customise() {
 
     // --- TOY PRICING LOGIC ---
     if (Object.keys(toys).length > 0) {
-        Object.entries(toys).forEach(([toyName, count]) => {
-            if (count > 0) {
-                const baseToyPrice = options.find(
-                    (o) => o.option_type === "toy" && o.option_name === toyName
-                )?.base_price || 0;
+      Object.entries(toys).forEach(([toyName, count]) => {
+        if (count > 0) {
+          const baseToyPrice = options.find(
+            (o) => o.option_type === "toy" && o.option_name === toyName
+          )?.base_price || 0;
 
-                if (isBasePromotionActive && toyName === "Edible Toys") {
-                    const payableCount = Math.max(0, count - 5);
-                    total += baseToyPrice * payableCount;
-                } else {
-                    total += baseToyPrice * count;
-                }
-            }
-        });
+          if (isBasePromotionActive && toyName === "Edible Toys") {
+            const payableCount = Math.max(0, count - 5);
+            total += baseToyPrice * payableCount;
+          } else {
+            total += baseToyPrice * count;
+          }
+        }
+      });
     }
     // --- END TOY PRICING LOGIC ---
 
@@ -247,13 +247,13 @@ export default function Customise() {
 
   const pricingBreakdown = useMemo(() => {
     const getOptionPrice = (type: string, name: string | null) => {
-        if (!name) return 0;
-        const found = options.find(o => o.option_type === type && o.option_name === name);
-        return found ? Number(found.base_price) : 0;
+      if (!name) return 0;
+      const found = options.find(o => o.option_type === type && o.option_name === name);
+      return found ? Number(found.base_price) : 0;
     };
     const getRulePrice = (ruleName: string) => {
-        const found = extraPricing.find(r => r.rule_name === ruleName);
-        return found ? Number(found.price) : 0;
+      const found = extraPricing.find(r => r.rule_name === ruleName);
+      return found ? Number(found.price) : 0;
     };
 
     const breakdown: { label: string; price: number }[] = [];
@@ -261,74 +261,72 @@ export default function Customise() {
 
     // Base Options
     if (weightKg) {
-        const price = getOptionPrice("weight", weightKg);
-        breakdown.push({ label: `Weight (${weightKg}kg)`, price });
-        currentTotal += price;
+      const price = getOptionPrice("weight", weightKg);
+      breakdown.push({ label: `Weight (${weightKg}kg)`, price });
+      currentTotal += price;
     }
     if (flavour) {
-        const price = getOptionPrice("flavor", flavour);
-        breakdown.push({ label: `Flavour (${flavour})`, price });
-        currentTotal += price;
+      const price = getOptionPrice("flavor", flavour);
+      breakdown.push({ label: `Flavour (${flavour})`, price });
+      currentTotal += price;
     }
     if (shape) {
-        const price = getOptionPrice("shape", shape);
-        breakdown.push({ label: `Shape (${shape})`, price });
-        currentTotal += price;
+      const price = getOptionPrice("shape", shape);
+      breakdown.push({ label: `Shape (${shape})`, price });
+      currentTotal += price;
     }
     if (cakeType) {
-        const price = getOptionPrice("cake_type", cakeType);
-        breakdown.push({ label: `Cake Style (${cakeType})`, price });
-        currentTotal += price;
+      const price = getOptionPrice("cake_type", cakeType);
+      breakdown.push({ label: `Cake Style (${cakeType})`, price });
+      currentTotal += price;
     }
-    if (icing) {
-        // Icing is a special case with rules, so we'll handle it separately
-    }
+    // Icing is handled by rules below (Fondant/Semi-Fondant)
 
     // Extra Rules
     if (!withEgg) {
-        const price = getRulePrice("Eggless");
-        breakdown.push({ label: "Eggless", price });
-        currentTotal += price;
+      const price = getRulePrice("Eggless");
+      breakdown.push({ label: "Eggless", price });
+      currentTotal += price;
     }
 
     const numericWeight = parseFloat(weightKg || "0");
     if (icing === "Fondant") {
-        if (numericWeight >= 1 && numericWeight <= 1.5) {
-            const price = getRulePrice("Fondant_1_1.5kg");
-            breakdown.push({ label: `Icing (${icing} 1-1.5kg)`, price });
-            currentTotal += price;
-        } else if (numericWeight >= 2 && numericWeight <= 4) {
-            const price = getRulePrice("Fondant_2_4kg");
-            breakdown.push({ label: `Icing (${icing} 2-4kg)`, price });
-            currentTotal += price;
-        } else if (numericWeight >= 5) {
-            const price = getRulePrice("Fondant_5kg_and_above");
-            breakdown.push({ label: `Icing (${icing} 5kg+)`, price });
-            currentTotal += price;
-        }
+      if (numericWeight >= 1 && numericWeight <= 1.5) {
+        const price = getRulePrice("Fondant_1_1.5kg");
+        breakdown.push({ label: `Icing (${icing} 1-1.5kg)`, price });
+        currentTotal += price;
+      } else if (numericWeight >= 2 && numericWeight <= 4) {
+        const price = getRulePrice("Fondant_2_4kg");
+        breakdown.push({ label: `Icing (${icing} 2-4kg)`, price });
+        currentTotal += price;
+      } else if (numericWeight >= 5) {
+        const price = getRulePrice("Fondant_5kg_and_above");
+        breakdown.push({ label: `Icing (${icing} 5kg+)`, price });
+        currentTotal += price;
+      }
     } else if (icing === "Semi-Fondant") {
-        if (numericWeight >= 1 && numericWeight <= 1.5) {
-            const price = getRulePrice("Semi-Fondant_1_1.5kg");
-            breakdown.push({ label: `Icing (${icing} 1-1.5kg)`, price });
-            currentTotal += price;
-        } else if (numericWeight >= 2 && numericWeight <= 4) {
-            const price = getRulePrice("Semi-Fondant_2_4kg");
-            breakdown.push({ label: `Icing (${icing} 2-4kg)`, price });
-            currentTotal += price;
-        } else if (numericWeight >= 5) {
-            const price = getRulePrice("Semi-Fondant_5kg_and_above");
-            breakdown.push({ label: `Icing (${icing} 5kg+)`, price });
-            currentTotal += price;
-        }
+      if (numericWeight >= 1 && numericWeight <= 1.5) {
+        const price = getRulePrice("Semi-Fondant_1_1.5kg");
+        breakdown.push({ label: `Icing (${icing} 1-1.5kg)`, price });
+        currentTotal += price;
+      } else if (numericWeight >= 2 && numericWeight <= 4) {
+        const price = getRulePrice("Semi-Fondant_2_4kg");
+        breakdown.push({ label: `Icing (${icing} 2-4kg)`, price });
+        currentTotal += price;
+      } else if (numericWeight >= 5) {
+        const price = getRulePrice("Semi-Fondant_5kg_and_above");
+        breakdown.push({ label: `Icing (${icing} 5kg+)`, price });
+        currentTotal += price;
+      }
     }
 
 
     if (photoCount > 0) {
-        const multiplier = Math.ceil(photoCount / 2);
-        const basePhotoPrice = getRulePrice("Photo Cake");
-        const price = basePhotoPrice * multiplier;
-        breakdown.push({ label: `Photo Cake (${photoCount} photos)`, price });
-        currentTotal += price;
+      const multiplier = Math.ceil(photoCount / 2);
+      const basePhotoPrice = getRulePrice("Photo Cake");
+      const price = basePhotoPrice * multiplier;
+      breakdown.push({ label: `Photo Cake (${photoCount} photos)`, price });
+      currentTotal += price;
     }
 
     const isFondant = icing === "Fondant";
@@ -337,30 +335,32 @@ export default function Customise() {
 
     if (Object.keys(toys).length > 0) {
       Object.entries(toys).forEach(([toyName, count]) => {
-          if (count > 0) {
-              const baseToyPrice = options.find(
-                  (o) => o.option_type === "toy" && o.option_name === toyName
-              )?.base_price || 0;
+        if (count > 0) {
+          const baseToyPrice = options.find(
+            (o) => o.option_type === "toy" && o.option_name === toyName
+          )?.base_price || 0;
 
-              if (isBasePromotionActive && toyName === "Edible Toys") {
-                  const payableCount = Math.max(0, count - 5);
-                  const price = baseToyPrice * payableCount;
-                  breakdown.push({ label: `${toyName} (${count} toys, 5 free)`, price });
-                  currentTotal += price;
-              } else {
-                  const price = baseToyPrice * count;
-                  breakdown.push({ label: `${toyName} (${count} toys)`, price });
-                  currentTotal += price;
-              }
+          let price = baseToyPrice * count;
+          let label = `${toyName} (${count} toys)`;
+
+          if (isBasePromotionActive && toyName === "Edible Toys") {
+            const payableCount = Math.max(0, count - 5);
+            price = baseToyPrice * payableCount;
+            label = `${toyName} (${count} toys, 5 free)`;
           }
+          breakdown.push({ label: label, price: price });
+          currentTotal += price;
+        }
       });
-  }
+    }
 
-    // Display subtotal to confirm everything adds up
-    // breakdown.push({ label: "Subtotal", price: currentTotal });
+    // Sanity check: Ensure the calculated breakdown total matches the sellingPrice memo
+    // if (Math.abs(currentTotal - sellingPrice) > 0.01) {
+    //   console.error("Breakdown mismatch:", currentTotal, sellingPrice);
+    // }
 
     return { breakdown, total: sellingPrice };
-}, [options, extraPricing, weightKg, icing, flavour, cakeType, shape, withEgg, photoCount, toys, sellingPrice]);
+  }, [options, extraPricing, weightKg, icing, flavour, cakeType, shape, withEgg, photoCount, toys, sellingPrice]);
 
 
   const compressImage = async (
@@ -502,66 +502,66 @@ export default function Customise() {
 
   const handleSaveAndShare = async () => {
     if (!name.trim() || !phone.trim() || !/^\d{10}$/.test(phone)) {
-        alert("Please enter a valid name and 10-digit phone number");
-        return;
+      alert("Please enter a valid name and 10-digit phone number");
+      return;
     }
     if (!consentChecked) {
-        alert("Please agree to the data storage consent.");
-        return;
+      alert("Please agree to the data storage consent.");
+      return;
     }
 
     try {
-        setSaving(true);
-        let referenceImageUrl: string | null = null;
-        if (referenceImage) {
-            const up = await fetch("/api/upload", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ dataUrl: referenceImage }),
-            });
-            if (up.ok) {
-                const j = await up.json();
-                referenceImageUrl = j.url;
-            }
+      setSaving(true);
+      let referenceImageUrl: string | null = null;
+      if (referenceImage) {
+        const up = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataUrl: referenceImage }),
+        });
+        if (up.ok) {
+          const j = await up.json();
+          referenceImageUrl = j.url;
         }
-        const res = await fetch("/api/cakes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                name,
-                phone,
-                price: sellingPrice,
-                referenceImage: referenceImageUrl,
-                weightKg,
-                icing,
-                flavour,
-                cakeType,
-                shape,
-                message,
-                withEgg,
-                photoCount,
-                toys,
-            }),
-        });
-        if (!res.ok) throw new Error("Save failed");
-        const data = await res.json();
-        const orderId = data.id;
-        setSavedId(orderId);
-        const link = `${window.location.origin}/customise/${orderId}`;
-        const qr = await QRCode.toDataURL(link, {
-            margin: 1,
-            width: 160,
-        });
-        setQrDataUrl(qr);
+      }
+      const res = await fetch("/api/cakes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          phone,
+          price: sellingPrice,
+          referenceImage: referenceImageUrl,
+          weightKg,
+          icing,
+          flavour,
+          cakeType,
+          shape,
+          message,
+          withEgg,
+          photoCount,
+          toys, // Passing the full toys state object
+        }),
+      });
+      if (!res.ok) throw new Error("Save failed");
+      const data = await res.json();
+      const orderId = data.id;
+      setSavedId(orderId);
+      const link = `${window.location.origin}/customise/${orderId}`;
+      const qr = await QRCode.toDataURL(link, {
+        margin: 1,
+        width: 160,
+      });
+      setQrDataUrl(qr);
 
-        createAndDownloadImage(orderId, qr);
+      createAndDownloadImage(orderId, qr);
 
-        setShowPricingModal(false);
-        setShowDialog(true);
+      setShowPricingModal(false);
+      setShowDialog(true);
     } catch {
-        alert("Could not save configuration. Please try again.");
+      alert("Could not save configuration. Please try again.");
     } finally {
-        setSaving(false);
+      setSaving(false);
     }
   };
 
@@ -591,11 +591,10 @@ export default function Customise() {
                     <button
                       key={w}
                       onClick={() => setWeightKg(w)}
-                      className={`relative px-3 pt-4 pb-2 rounded-md text-sm border transition-colors duration-200 ${
-                        weightKg === w
+                      className={`relative px-3 pt-4 pb-2 rounded-md text-sm border transition-colors duration-200 ${weightKg === w
                           ? "bg-[var(--primary)] text-white border-[var(--primary)]"
                           : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                      }`}
+                        }`}
                       aria-pressed={weightKg === w}
                     >
                       {w === "0.5" && (
@@ -617,11 +616,10 @@ export default function Customise() {
                   <button
                     key={opt}
                     onClick={() => setIcing(opt)}
-                    className={`px-3 py-2 rounded-md text-sm border ${
-                      icing === opt
+                    className={`px-3 py-2 rounded-md text-sm border ${icing === opt
                         ? "bg-[var(--primary)] text-white border-[var(--primary)]"
                         : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                    }`}
+                      }`}
                     aria-pressed={icing === opt}
                   >
                     {opt}
@@ -662,22 +660,20 @@ export default function Customise() {
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   onClick={() => setWithEgg(true)}
-                  className={`px-3 py-2 rounded-md text-sm border ${
-                    withEgg
+                  className={`px-3 py-2 rounded-md text-sm border ${withEgg
                       ? "bg-[var(--primary)] text-white border-[var(--primary)]"
                       : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                  }`}
+                    }`}
                   aria-pressed={withEgg}
                 >
                   With Egg
                 </button>
                 <button
                   onClick={() => setWithEgg(false)}
-                  className={`px-3 py-2 rounded-md text-sm border ${
-                    !withEgg
+                  className={`px-3 py-2 rounded-md text-sm border ${!withEgg
                       ? "bg-[var(--primary)] text-white border-[var(--primary)]"
                       : "bg-white text-foreground border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                  }`}
+                    }`}
                   aria-pressed={!withEgg}
                 >
                   Eggless
@@ -746,43 +742,43 @@ export default function Customise() {
 
             {/* Toy Selection */}
             {toyOptions.map(toyName => (
-                <div key={toyName}>
-                    <label className="block text-sm font-medium">{toyName}</label>
-                    <div className="mt-2 flex items-center gap-2">
-                        <button
-                            onClick={() => setToys(prev => ({
-                                ...prev,
-                                [toyName]: Math.max(0, (prev[toyName] || 0) - 1)
-                            }))}
-                            className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                            disabled={!toys[toyName] || toys[toyName] === 0}
-                        >
-                            -
-                        </button>
-                        <span className="text-xl font-semibold w-8 text-center">
-                            {toys[toyName] || 0}
-                        </span>
-                        <button
-                            onClick={() => setToys(prev => ({
-                                ...prev,
-                                [toyName]: (prev[toyName] || 0) + 1
-                            }))}
-                            className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
-                        >
-                            +
-                        </button>
-                    </div>
-                    {toyName === "Edible Toys" && isBasePromotionActive && (toys[toyName] || 0) > 0 && (
-                        <p className="mt-1 text-xs text-green-600">
-                            🎉 **Promotion Applied!** First 5 Edible Toys are FREE.
-                        </p>
-                    )}
-                    {toyName === "Non Edible Toys" && (toys[toyName] || 0) > 0 && (
-                        <p className="mt-1 text-xs text-foreground/60">
-                            Non Edible Toys are charged at full price.
-                        </p>
-                    )}
+              <div key={toyName}>
+                <label className="block text-sm font-medium">{toyName}</label>
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => setToys(prev => ({
+                      ...prev,
+                      [toyName]: Math.max(0, (prev[toyName] || 0) - 1)
+                    }))}
+                    className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                    disabled={!toys[toyName] || toys[toyName] === 0}
+                  >
+                    -
+                  </button>
+                  <span className="text-xl font-semibold w-8 text-center">
+                    {toys[toyName] || 0}
+                  </span>
+                  <button
+                    onClick={() => setToys(prev => ({
+                      ...prev,
+                      [toyName]: (prev[toyName] || 0) + 1
+                    }))}
+                    className="w-8 h-8 rounded-md border border-[var(--muted)] hover:bg-[var(--muted)]/50"
+                  >
+                    +
+                  </button>
                 </div>
+                {toyName === "Edible Toys" && isBasePromotionActive && (toys[toyName] || 0) > 0 && (
+                  <p className="mt-1 text-xs text-green-600">
+                    🎉 **Promotion Applied!** First 5 Edible Toys are FREE.
+                  </p>
+                )}
+                {toyName === "Non Edible Toys" && (toys[toyName] || 0) > 0 && (
+                  <p className="mt-1 text-xs text-foreground/60">
+                    Non Edible Toys are charged at full price.
+                  </p>
+                )}
+              </div>
             ))}
 
             {/* Text on Cake */}
@@ -879,17 +875,16 @@ export default function Customise() {
 
           {(validationErrors.fondantWeight || validationErrors.semiFondantWeight || validationErrors.tierCakeWeight || validationErrors.requiredFields) && (
             <div className="mt-4 rounded-md border border-red-600 bg-red-50 p-3 text-sm text-red-700">
-                {validationErrors.fondantWeight || validationErrors.semiFondantWeight || validationErrors.tierCakeWeight || validationErrors.requiredFields}
+              {validationErrors.fondantWeight || validationErrors.semiFondantWeight || validationErrors.tierCakeWeight || validationErrors.requiredFields}
             </div>
           )}
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
-              className={`px-5 py-2 rounded-full text-white text-sm ${
-                isSavable
+              className={`px-5 py-2 rounded-full text-white text-sm ${isSavable
                   ? "bg-[var(--primary)] hover:bg-[var(--primary-600)]"
                   : "bg-gray-400 cursor-not-allowed"
-              }`}
+                }`}
               disabled={!isSavable}
               onClick={() => {
                 if (isSavable) {
@@ -911,35 +906,35 @@ export default function Customise() {
           <div className="bg-white rounded-lg p-6 max-w-lg w-full text-left">
             <h2 className="text-2xl font-semibold mb-4">Pricing Breakdown</h2>
             <div className="space-y-2 text-sm">
-                {pricingBreakdown.breakdown.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                        <span className="text-foreground/80">{item.label}</span>
-                        <span className="font-medium">₹{item.price.toFixed(2)}</span>
-                    </div>
-                ))}
+              {pricingBreakdown.breakdown.map((item, index) => (
+                <div key={index} className="flex justify-between items-center">
+                  <span className="text-foreground/80">{item.label}</span>
+                  <span className="font-medium">₹{item.price.toFixed(2)}</span>
+                </div>
+              ))}
             </div>
             <hr className="my-4" />
             <div className="flex justify-between items-center font-semibold text-lg">
-                <span>Total Price</span>
-                <span>₹{pricingBreakdown.total.toFixed(2)}</span>
+              <span>Total Price</span>
+              <span>₹{pricingBreakdown.total.toFixed(2)}</span>
             </div>
             <p className="text-xs text-foreground/60 mt-4">
-                * Taxes and delivery charges may be added at checkout.
+              * Taxes and delivery charges may be added at checkout.
             </p>
             <div className="mt-6 flex gap-3">
-                <button
-                    className="flex-1 px-5 py-2 rounded-full border border-[var(--muted)] text-sm hover:bg-[var(--muted)]/50"
-                    onClick={() => setShowPricingModal(false)}
-                >
-                    Go Back
-                </button>
-                <button
-                    className="flex-1 px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)] disabled:opacity-60"
-                    onClick={handleSaveAndShare}
-                    disabled={saving}
-                >
-                    {saving ? "Saving..." : "Save & Share"}
-                </button>
+              <button
+                className="flex-1 px-5 py-2 rounded-full border border-[var(--muted)] text-sm hover:bg-[var(--muted)]/50"
+                onClick={() => setShowPricingModal(false)}
+              >
+                Go Back
+              </button>
+              <button
+                className="flex-1 px-5 py-2 rounded-full bg-[var(--primary)] text-white text-sm hover:bg-[var(--primary-600)] disabled:opacity-60"
+                onClick={handleSaveAndShare}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save & Share"}
+              </button>
             </div>
           </div>
         </div>
